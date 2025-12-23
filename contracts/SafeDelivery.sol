@@ -60,7 +60,7 @@ contract SafeDelivery {
         uint256 shipmentId;
         address actor;
         string location;
-        string checkpointType;  // "Pickup", "Hub", "Transit", "Delivery"
+        string checkpointType;  // "Pickup", "Hub", "Transit", "Delivery", "Report"
         uint256 timestamp;
         string notes;
         int256 temperature;     // Temperature in celsius * 10 (for decimals)
@@ -718,7 +718,7 @@ contract SafeDelivery {
                 emit DeliveryConfirmed(_shipmentId, shipment.recipient, block.timestamp);
             }
         }
-        // "Transit" checkpoint type does not change status
+        // "Transit" and "Report" checkpoint types do not change status
     }
 
     /**
@@ -770,6 +770,10 @@ contract SafeDelivery {
         }
         if (checkpointTypeHash == keccak256(bytes("Delivery"))) {
             return _role == ActorRole.Carrier || _role == ActorRole.Sensor;
+        }
+        if (checkpointTypeHash == keccak256(bytes("Report"))) {
+            // Report checkpoint type is allowed for all roles
+            return _role != ActorRole.None;
         }
         
         return false;
