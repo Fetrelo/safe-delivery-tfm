@@ -48,7 +48,7 @@ export default function CompletedShipments() {
       }
 
       // Check if user is admin (admins have access without registration)
-      const { getActor, isActorRegistered, isAdmin, getAllShipments } = await import('@/lib/contract');
+      const { getActor, isActorRegistered, isAdmin, getAllShipments, isReadOnlyRole, ActorRole } = await import('@/lib/contract');
       const adminStatus = await isAdmin(account);
       setIsUserAdmin(adminStatus);
       
@@ -67,7 +67,13 @@ export default function CompletedShipments() {
         
         // Only load shipments if user is registered
         if (registered) {
-          await loadShipments();
+          const role = Number(actor.role);
+          // Inspector role can view all completed shipments (read-only, like admin)
+          if (isReadOnlyRole(role)) {
+            await loadAllCompletedShipments();
+          } else {
+            await loadShipments();
+          }
         } else {
           setLoading(false);
         }

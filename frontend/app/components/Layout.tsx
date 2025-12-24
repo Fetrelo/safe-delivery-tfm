@@ -30,8 +30,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         } else {
           // Regular user should go to dashboard (unless already there or on allowed pages)
-          if (pathname !== '/' && pathname !== '/actors/register' && !pathname.startsWith('/shipments/')) {
-            router.push('/');
+          if (pathname !== '/shipments/active' && pathname !== '/actors/register') {
+            router.push('/shipments/active');
           }
         }
         

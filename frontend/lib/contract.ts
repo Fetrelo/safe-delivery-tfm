@@ -2,7 +2,7 @@ import { ethers } from 'ethers';
 import { getContract, getSigner, getProvider, CONTRACT_ADDRESS } from './web3';
 import CONTRACT_ABI_JSON from './contract-abi.json';
 
-const CONTRACT_ABI = CONTRACT_ABI_JSON as const;
+const CONTRACT_ABI = CONTRACT_ABI_JSON;
 
 // Contract types and enums
 export enum ShipmentStatus {
@@ -211,6 +211,11 @@ export function isActorRegistered(actor: Actor): boolean {
   return exists && hasValidRole && isApproved && isActive;
 }
 
+// Helper function to check if a role is read-only (can view but not perform actions)
+export function isReadOnlyRole(role: ActorRole | null): boolean {
+  return role === ActorRole.Inspector;
+}
+
 // Contract interaction functions
 export async function getShipment(shipmentId: number): Promise<Shipment> {
   const contract = await getReadOnlyContract();
@@ -300,16 +305,20 @@ export async function getAllActors(): Promise<Actor[]> {
     // Get actor details for each address found in events
     const actors: Actor[] = [];
     for (const event of events) {
-      if (event.args && event.args[0]) {
-        const actorAddress = event.args[0] as string;
-        try {
-          const actor = await getActor(actorAddress);
-          // Only include if actor exists (address is not zero)
-          if (actor.actorAddress !== '0x0000000000000000000000000000000000000000') {
-            actors.push(actor);
+      // Type guard: check if event is EventLog (has args property)
+      if ('args' in event) {
+        const eventLog = event as ethers.EventLog;
+        if (eventLog.args && eventLog.args[0]) {
+          const actorAddress = eventLog.args[0] as string;
+          try {
+            const actor = await getActor(actorAddress);
+            // Only include if actor exists (address is not zero)
+            if (actor.actorAddress !== '0x0000000000000000000000000000000000000000') {
+              actors.push(actor);
+            }
+          } catch (error) {
+            console.warn(`Failed to get actor details for ${actorAddress}:`, error);
           }
-        } catch (error) {
-          console.warn(`Failed to get actor details for ${actorAddress}:`, error);
         }
       }
     }

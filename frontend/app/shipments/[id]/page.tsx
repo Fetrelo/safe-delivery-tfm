@@ -13,6 +13,7 @@ import {
   getActor,
   isActorRegistered,
   isAdmin,
+  isReadOnlyRole,
 } from '@/lib/contract';
 import { getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
 import CheckpointModal from '@/app/components/CheckpointModal';
@@ -81,6 +82,12 @@ export default function ShipmentDetails() {
       
       if (!registered) {
         router.replace('/actors/register');
+        return;
+      }
+
+      // Inspector role can view shipment details (read-only, like admin)
+      if (isReadOnlyRole(actor.role)) {
+        await loadData();
         return;
       }
 
@@ -200,6 +207,8 @@ export default function ShipmentDetails() {
 
   const canRecordCheckpoint = () => {
     if (!userRole || !shipment) return false;
+    // Inspector role cannot record checkpoints (read-only)
+    if (isReadOnlyRole(userRole)) return false;
     if (shipment.status === ShipmentStatus.Delivered || shipment.status === ShipmentStatus.Cancelled) {
       return false;
     }

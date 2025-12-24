@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getActor, ActorRole, isActorRegistered, isAdmin as checkIsAdmin } from '@/lib/contract';
+import { getActor, ActorRole, isActorRegistered, isAdmin as checkIsAdmin, isReadOnlyRole } from '@/lib/contract';
 import { CONTRACT_ADDRESS, getCurrentAccount } from '@/lib/web3';
 
 export default function SideMenu() {
   const pathname = usePathname();
   const [userRole, setUserRole] = useState<ActorRole | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isInspector, setIsInspector] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [hasSubmittedRegistration, setHasSubmittedRegistration] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -56,7 +57,13 @@ export default function SideMenu() {
       
       if (registered) {
         // Ensure role is cast to ActorRole enum
-        setUserRole(actor.role as ActorRole);
+        const role = actor.role as ActorRole;
+        setUserRole(role);
+        
+        // Inspector role has read-only access (can view all shipments)
+        if (isReadOnlyRole(role)) {
+          setIsInspector(true);
+        }
       } else {
         // User is not registered (only MetaMask connected)
         setUserRole(null);
@@ -79,11 +86,11 @@ export default function SideMenu() {
   };
 
   const menuItems = [
-    { href: '/', label: 'Dashboard', icon: '📊' },
     { href: '/shipments/create', label: 'Create Shipment', icon: '➕', roles: [ActorRole.Sender] },
     { href: '/shipments/active', label: 'Active Shipments', icon: '📦' },
     { href: '/shipments/completed', label: 'Completed/Cancelled', icon: '✅' },
     { href: '/actors/register', label: 'Register account', icon: '👤' },
+    { href: '/', label: 'Dashboard', icon: '📊', roles: [ActorRole.Inspector] },
     { href: '/admin', label: 'Admin Panel', icon: '⚙️', adminOnly: true },
   ];
 
@@ -97,6 +104,14 @@ export default function SideMenu() {
     if (isAdmin) {
       if (item.href === '/actors/register') return false;
       if (item.href === '/shipments/create') return false;
+      return true;
+    }
+    
+    // Inspector sees all menu items (except register account, create shipment, and admin panel)
+    if (isInspector) {
+      if (item.href === '/actors/register') return false;
+      if (item.href === '/shipments/create') return false;
+      if (item.adminOnly) return false; // Don't show admin panel to Inspector
       return true;
     }
     

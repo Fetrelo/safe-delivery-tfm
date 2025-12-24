@@ -89,7 +89,7 @@ export default function CreateShipment() {
     requiresColdChain: false,
     minTemperature: '',
     maxTemperature: '',
-    estimatedDeliveryDays: '',
+    estimatedDeliveryHours: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,8 +119,8 @@ export default function CreateShipment() {
       const contract = await getContract();
       
       // Calculate estimated delivery timestamp
-      const estimatedDeliveryDays = parseInt(formData.estimatedDeliveryDays);
-      const estimatedDeliveryTimestamp = Math.floor(Date.now() / 1000) + (estimatedDeliveryDays * 24 * 60 * 60);
+      const estimatedDeliveryHours = parseInt(formData.estimatedDeliveryHours);
+      const estimatedDeliveryTimestamp = Math.floor(Date.now() / 1000) + (estimatedDeliveryHours * 60 * 60);
       
       // Convert temperatures (multiply by 10 for contract)
       const minTemp = formData.requiresColdChain 
@@ -249,19 +249,19 @@ export default function CreateShipment() {
           </div>
 
           <div>
-            <label htmlFor="estimatedDeliveryDays" className="block text-sm font-medium text-foreground mb-1">
-              Estimated Delivery (days) *
+            <label htmlFor="estimatedDeliveryHours" className="block text-sm font-medium text-foreground mb-1">
+              Estimated Delivery (hours) *
             </label>
             <input
               type="number"
-              id="estimatedDeliveryDays"
-              name="estimatedDeliveryDays"
-              value={formData.estimatedDeliveryDays}
+              id="estimatedDeliveryHours"
+              name="estimatedDeliveryHours"
+              value={formData.estimatedDeliveryHours || ''}
               onChange={handleChange}
               required
               min="1"
               className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-secondary"
-              placeholder="e.g., 3"
+              placeholder="e.g., 72"
             />
           </div>
 
