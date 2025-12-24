@@ -12,3 +12,11 @@ remappings = []
 [profile.ci]
 fuzz = { runs = 10000 }
 
+# Sepolia network configuration
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+
+# Etherscan verification (optional)
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+

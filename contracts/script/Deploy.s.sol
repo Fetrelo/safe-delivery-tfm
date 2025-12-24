@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {SafeDelivery} from "../contracts/SafeDelivery.sol";
+import {SafeDelivery} from "../SafeDelivery.sol";
 
 contract DeployScript is Script {
     function run() external returns (address) {

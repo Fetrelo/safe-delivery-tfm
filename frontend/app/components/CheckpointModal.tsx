@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import toast from 'react-hot-toast';
 import { getContract, getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
 import { ShipmentStatus, ActorRole, Checkpoint } from '@/lib/contract';
 
@@ -168,7 +169,7 @@ export default function CheckpointModal({
     e.preventDefault();
     
     if (!CONTRACT_ADDRESS) {
-      alert('Contract not deployed');
+      toast.error('Contract not deployed');
       return;
     }
 
@@ -176,7 +177,7 @@ export default function CheckpointModal({
       setLoading(true);
       const account = await getCurrentAccount();
       if (!account) {
-        alert('Please connect your wallet');
+        toast.error('Please connect your wallet');
         return;
       }
 
@@ -204,12 +205,12 @@ export default function CheckpointModal({
 
       await tx.wait();
       
-      alert('Checkpoint recorded successfully!');
+      toast.success('Checkpoint recorded successfully!');
       onSuccess();
       onClose();
     } catch (error: any) {
       console.error('Error recording checkpoint:', error);
-      alert(`Failed to record checkpoint: ${error.message}`);
+      toast.error(`Failed to record checkpoint: ${error.message}`);
     } finally {
       setLoading(false);
     }

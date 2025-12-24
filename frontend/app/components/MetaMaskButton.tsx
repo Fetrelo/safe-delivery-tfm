@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { connectWallet, disconnectWallet, getCurrentAccount, formatAddress } from '@/lib/web3';
 
 export default function MetaMaskButton() {
@@ -55,8 +56,9 @@ export default function MetaMaskButton() {
     try {
       const address = await connectWallet();
       setAccount(address);
+      toast.success('Wallet connected successfully!');
     } catch (error: any) {
-      alert(`Failed to connect: ${error.message}`);
+      toast.error(`Failed to connect: ${error.message}`);
     } finally {
       setIsConnecting(false);
     }

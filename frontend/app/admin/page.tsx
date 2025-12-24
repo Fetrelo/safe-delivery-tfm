@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { getContract, getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
 import { getActor, ActorRole, ActorApprovalStatus, isActorRegistered, isAdmin as checkIsAdmin, getAllActors } from '@/lib/contract';
 
@@ -108,7 +109,7 @@ export default function AdminPanel() {
       setActors(allActors);
     } catch (error: any) {
       console.error('Error loading actors:', error);
-      alert(`Failed to load actors: ${error.message}`);
+      toast.error(`Failed to load actors: ${error.message}`);
       setActors([]);
     } finally {
       setLoading(false);
@@ -124,11 +125,11 @@ export default function AdminPanel() {
         ActorApprovalStatus.Approved
       );
       await tx.wait();
-      alert('Actor approved successfully!');
+      toast.success('Actor approved successfully!');
       await loadActors();
     } catch (error: any) {
       console.error('Error approving actor:', error);
-      alert(`Failed to approve actor: ${error.message}`);
+      toast.error(`Failed to approve actor: ${error.message}`);
     } finally {
       setProcessing(null);
     }
@@ -143,12 +144,12 @@ export default function AdminPanel() {
         ActorApprovalStatus.Rejected
       );
       await tx.wait();
-      alert('Actor rejected successfully!');
+      toast.success('Actor rejected successfully!');
       // Reload actors to reflect the change
       await loadActors();
     } catch (error: any) {
       console.error('Error rejecting actor:', error);
-      alert(`Failed to reject actor: ${error.message}`);
+      toast.error(`Failed to reject actor: ${error.message}`);
     } finally {
       setProcessing(null);
     }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { getContract, getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
 import { ActorRole, getActor, ActorApprovalStatus, isAdmin as checkIsAdmin } from '@/lib/contract';
 
@@ -88,7 +89,7 @@ export default function RegisterActor() {
     e.preventDefault();
     
     if (!CONTRACT_ADDRESS) {
-      alert('Contract not deployed. Please deploy the contract first.');
+      toast.error('Contract not deployed. Please deploy the contract first.');
       return;
     }
 
@@ -96,7 +97,7 @@ export default function RegisterActor() {
       setLoading(true);
       const account = await getCurrentAccount();
       if (!account) {
-        alert('Please connect your wallet');
+        toast.error('Please connect your wallet');
         return;
       }
 
@@ -113,7 +114,7 @@ export default function RegisterActor() {
       await checkRegistrationStatus();
     } catch (error: any) {
       console.error('Error registering actor:', error);
-      alert(`Failed to register: ${error.message}`);
+      toast.error(`Failed to register: ${error.message}`);
     } finally {
       setLoading(false);
     }

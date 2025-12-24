@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { getContract, getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
 import { ActorRole, getActor, isActorRegistered, isAdmin as checkIsAdmin } from '@/lib/contract';
 
@@ -96,7 +97,7 @@ export default function CreateShipment() {
     e.preventDefault();
     
     if (!CONTRACT_ADDRESS) {
-      alert('Contract not deployed. Please deploy the contract first.');
+      toast.error('Contract not deployed. Please deploy the contract first.');
       return;
     }
 
@@ -104,14 +105,14 @@ export default function CreateShipment() {
       setLoading(true);
       const account = await getCurrentAccount();
       if (!account) {
-        alert('Please connect your wallet');
+        toast.error('Please connect your wallet');
         return;
       }
 
       // Verify user has Sender role
       const actor = await getActor(account);
       if (actor.role !== ActorRole.Sender) {
-        alert('Only Senders can create shipments.');
+        toast.error('Only Senders can create shipments.');
         setLoading(false);
         return;
       }
@@ -143,11 +144,11 @@ export default function CreateShipment() {
 
       await tx.wait();
       
-      alert('Shipment created successfully!');
+      toast.success('Shipment created successfully!');
       router.push('/');
     } catch (error: any) {
       console.error('Error creating shipment:', error);
-      alert(`Failed to create shipment: ${error.message}`);
+      toast.error(`Failed to create shipment: ${error.message}`);
     } finally {
       setLoading(false);
     }
