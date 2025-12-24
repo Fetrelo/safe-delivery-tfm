@@ -59,7 +59,7 @@ export default function CheckpointModal({
 }: CheckpointModalProps) {
   const [loading, setLoading] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([40.7128, -74.0060]); // Default to NYC
+  const [mapCenter, setMapCenter] = useState<[number, number]>([20.66937, -103.35147]); // Default to Guadalajara
   const [formData, setFormData] = useState({
     locationName: '',
     checkpointType: '',
@@ -151,7 +151,7 @@ export default function CheckpointModal({
           }
         },
         () => {
-          // If geolocation fails, use default center (NYC) - already set in initial state
+          // If geolocation fails, use default center (GDL coordinates) already set in initial state
           if (isMounted) {
             console.log('Using default map center');
           }
