@@ -108,23 +108,33 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // Get shipments based on role
-      const shipmentIds = await getActorShipments(currentAccount);
-      const shipmentData = await Promise.all(
-        shipmentIds.map(async (id) => {
-          const shipment = await getShipment(id);
-          return shipment;
-        })
-      );
+      let shipmentData: any[] = [];
+      
+      // Hubs and Carriers need to see all shipments with certain statuses (not just ones they're involved in)
+      if (currentUserRole === ActorRole.Hub || currentUserRole === ActorRole.Carrier) {
+        const { getAllShipments } = await import('@/lib/contract');
+        const allShipments = await getAllShipments();
+        shipmentData = allShipments;
+      } else {
+        // For other roles, get shipments from actorShipments mapping
+        const shipmentIds = await getActorShipments(currentAccount);
+        shipmentData = await Promise.all(
+          shipmentIds.map(async (id) => {
+            const shipment = await getShipment(id);
+            return shipment;
+          })
+        );
+      }
 
       // Filter based on role
       let filteredShipments = shipmentData;
       if (currentUserRole === ActorRole.Carrier) {
-        // Carriers see Created, InTransit, OutForDelivery
+        // Carriers see Created, InTransit, AtHub, OutForDelivery
         filteredShipments = shipmentData.filter(
           (s) =>
             s.status === ShipmentStatus.Created ||
             s.status === ShipmentStatus.InTransit ||
+            s.status === ShipmentStatus.AtHub ||
             s.status === ShipmentStatus.OutForDelivery
         );
       } else if (currentUserRole === ActorRole.Sender || currentUserRole === ActorRole.Recipient) {

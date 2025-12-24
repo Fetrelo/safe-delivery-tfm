@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getActorShipments, getShipment, getAllShipments, ShipmentStatus } from '@/lib/contract';
+import { getActorShipments, getShipment, getAllShipments, ShipmentStatus, ActorRole } from '@/lib/contract';
 import { CONTRACT_ADDRESS, getCurrentAccount } from '@/lib/web3';
 
 export default function ActiveShipments() {
@@ -67,7 +67,7 @@ export default function ActiveShipments() {
         
         // Only load shipments if user is registered
         if (registered) {
-          await loadShipments();
+          await loadShipments(actor.role);
         } else {
           setLoading(false);
         }
@@ -107,7 +107,7 @@ export default function ActiveShipments() {
     }
   };
 
-  const loadShipments = async () => {
+  const loadShipments = async (userRole?: ActorRole) => {
     try {
       setLoading(true);
       const account = await getCurrentAccount();
@@ -116,20 +116,48 @@ export default function ActiveShipments() {
         return;
       }
 
-      const shipmentIds = await getActorShipments(account);
-      const shipmentData = await Promise.all(
-        shipmentIds.map(async (id) => {
-          const shipment = await getShipment(id);
-          return shipment;
-        })
-      );
+      let shipmentData: any[] = [];
+      
+      // Hubs and Carriers need to see all shipments with certain statuses (not just ones they're involved in)
+      if (userRole === ActorRole.Hub || userRole === ActorRole.Carrier) {
+        const allShipments = await getAllShipments();
+        shipmentData = allShipments;
+      } else {
+        // For other roles, get shipments from actorShipments mapping
+        const shipmentIds = await getActorShipments(account);
+        shipmentData = await Promise.all(
+          shipmentIds.map(async (id) => {
+            const shipment = await getShipment(id);
+            return shipment;
+          })
+        );
+      }
 
       // Filter active shipments (not Delivered or Cancelled)
-      const activeShipments = shipmentData.filter(
+      let activeShipments = shipmentData.filter(
         (s) =>
           s.status !== ShipmentStatus.Delivered &&
           s.status !== ShipmentStatus.Cancelled
       );
+
+      // Apply role-based filtering
+      if (userRole === ActorRole.Hub) {
+        // Hubs see InTransit and AtHub
+        activeShipments = activeShipments.filter(
+          (s) =>
+            s.status === ShipmentStatus.InTransit ||
+            s.status === ShipmentStatus.AtHub
+        );
+      } else if (userRole === ActorRole.Carrier) {
+        // Carriers see Created, InTransit, AtHub, OutForDelivery
+        activeShipments = activeShipments.filter(
+          (s) =>
+            s.status === ShipmentStatus.Created ||
+            s.status === ShipmentStatus.InTransit ||
+            s.status === ShipmentStatus.AtHub ||
+            s.status === ShipmentStatus.OutForDelivery
+        );
+      }
 
       setShipments(activeShipments);
     } catch (error: any) {

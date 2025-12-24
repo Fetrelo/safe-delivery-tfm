@@ -30,6 +30,7 @@ export default function ShipmentDetails() {
   const [showCheckpointModal, setShowCheckpointModal] = useState(false);
   const [userRole, setUserRole] = useState<ActorRole | null>(null);
   const [account, setAccount] = useState<string | null>(null);
+  const [actorNames, setActorNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (CONTRACT_ADDRESS) {
@@ -112,6 +113,34 @@ export default function ShipmentDetails() {
       setShipment(shipmentData);
       setCheckpoints(checkpointsData);
       setIncidents(incidentsData);
+
+      // Fetch actor names for all unique checkpoint actors
+      const uniqueActorAddresses = new Set<string>();
+      checkpointsData.forEach(cp => {
+        if (cp.actor && cp.actor !== '0x0000000000000000000000000000000000000000') {
+          uniqueActorAddresses.add(cp.actor);
+        }
+      });
+      incidentsData.forEach(inc => {
+        if (inc.reporter && inc.reporter !== '0x0000000000000000000000000000000000000000') {
+          uniqueActorAddresses.add(inc.reporter);
+        }
+      });
+
+      // Fetch actor details for all unique addresses
+      const actorNamesMap: Record<string, string> = {};
+      await Promise.all(
+        Array.from(uniqueActorAddresses).map(async (address) => {
+          try {
+            const actor = await getActor(address);
+            actorNamesMap[address] = actor.name || address.substring(0, 6) + '...' + address.substring(address.length - 4);
+          } catch (error) {
+            console.warn(`Failed to fetch actor for ${address}:`, error);
+            actorNamesMap[address] = address.substring(0, 6) + '...' + address.substring(address.length - 4);
+          }
+        })
+      );
+      setActorNames(actorNamesMap);
     } catch (error) {
       console.error('Error loading shipment:', error);
     } finally {
@@ -324,6 +353,9 @@ export default function ShipmentDetails() {
                           <p className="text-sm text-text-muted">
                             {(item.data as Checkpoint).checkpointType} Checkpoint
                           </p>
+                          <p className="text-xs text-text-muted mt-1">
+                            Registered by: {actorNames[(item.data as Checkpoint).actor] || (item.data as Checkpoint).actor.substring(0, 6) + '...' + (item.data as Checkpoint).actor.substring((item.data as Checkpoint).actor.length - 4)}
+                          </p>
                         </div>
                         <span className="text-xs text-text-muted">
                           {new Date(item.timestamp * 1000).toLocaleString()}
@@ -357,6 +389,9 @@ export default function ShipmentDetails() {
                           {new Date(item.timestamp * 1000).toLocaleString()}
                         </span>
                       </div>
+                      <p className="text-xs text-text-muted mt-1">
+                        Reported by: {actorNames[(item.data as Incident).reporter] || (item.data as Incident).reporter.substring(0, 6) + '...' + (item.data as Incident).reporter.substring((item.data as Incident).reporter.length - 4)}
+                      </p>
                       <p className="text-sm text-text-muted mt-1">
                         {(item.data as Incident).description}
                       </p>
@@ -374,6 +409,7 @@ export default function ShipmentDetails() {
           shipmentId={shipmentId}
           currentStatus={shipment.status}
           userRole={userRole}
+          checkpoints={checkpoints}
           onClose={() => setShowCheckpointModal(false)}
           onSuccess={loadData}
         />

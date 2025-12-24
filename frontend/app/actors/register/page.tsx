@@ -145,6 +145,7 @@ export default function RegisterActor() {
     { value: ActorRole.Hub, label: 'Hub' },
     { value: ActorRole.Recipient, label: 'Recipient' },
     { value: ActorRole.Inspector, label: 'Inspector' },
+    { value: ActorRole.Sensor, label: 'Sensor' },
   ];
 
   if (checkingStatus) {

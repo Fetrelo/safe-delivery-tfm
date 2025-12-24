@@ -793,7 +793,7 @@ contract SafeDelivery {
             return _role == ActorRole.Carrier || _role == ActorRole.Sensor;
         }
         if (checkpointTypeHash == keccak256(bytes("Delivery"))) {
-            return _role == ActorRole.Carrier || _role == ActorRole.Sensor;
+            return _role == ActorRole.Recipient;
         }
         if (checkpointTypeHash == keccak256(bytes("Report"))) {
             // Report checkpoint type is allowed for all roles
