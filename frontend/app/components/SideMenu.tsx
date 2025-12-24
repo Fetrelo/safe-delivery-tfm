@@ -11,6 +11,7 @@ export default function SideMenu() {
   const [userRole, setUserRole] = useState<ActorRole | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [hasSubmittedRegistration, setHasSubmittedRegistration] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function SideMenu() {
       if (!CONTRACT_ADDRESS) {
         setIsChecking(false);
         setIsRegistered(false);
+        setHasSubmittedRegistration(false);
         return; // Contract not deployed yet
       }
       
@@ -39,12 +41,16 @@ export default function SideMenu() {
       if (!account) {
         setIsChecking(false);
         setIsRegistered(false);
+        setHasSubmittedRegistration(false);
         return; // MetaMask not connected
       }
 
-      // Check if user is registered in the contract
-      // A user is registered only if: exists, has valid role, is approved, and is active
+      // Check if user has submitted a registration request (exists in contract, regardless of approval status)
       const actor = await getActor(account);
+      const hasSubmitted = actor.actorAddress !== '0x0000000000000000000000000000000000000000';
+      setHasSubmittedRegistration(hasSubmitted);
+      
+      // A user is fully registered only if: exists, has valid role, is approved, and is active
       const registered = isActorRegistered(actor);
       setIsRegistered(registered);
       
@@ -61,6 +67,7 @@ export default function SideMenu() {
     } catch (error) {
       console.error('Error checking user role:', error);
       setIsRegistered(false);
+      setHasSubmittedRegistration(false);
       setUserRole(null);
     } finally {
       setIsChecking(false);
@@ -82,18 +89,24 @@ export default function SideMenu() {
       return false;
     }
     
-    // Admins see all menu items (except register if they're also registered as actor)
+    // Admins see all menu items (except register if they've submitted registration)
     if (isAdmin) {
-      if (item.href === '/actors/register' && isRegistered) return false;
+      if (item.href === '/actors/register' && hasSubmittedRegistration) return false;
       return true;
     }
     
-    // If user is not registered, only show "Register account"
-    if (!isRegistered) {
+    // If user has not submitted registration, only show "Register account"
+    if (!hasSubmittedRegistration) {
       return item.href === '/actors/register';
     }
     
+    // If user has submitted registration, hide "Register account" (they've already submitted)
+    if (item.href === '/actors/register') {
+      return false;
+    }
+    
     // Normal filtering for registered users (non-admins)
+    // Note: ProtectedRoute will handle blocking access if not approved
     if (item.adminOnly) return false;
     if (item.roles && userRole && !item.roles.includes(userRole)) return false;
     return true;

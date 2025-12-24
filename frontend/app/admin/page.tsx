@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getContract, getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
-import { getActor, ActorRole, ActorApprovalStatus, isActorRegistered, isAdmin as checkIsAdmin } from '@/lib/contract';
+import { getActor, ActorRole, ActorApprovalStatus, isActorRegistered, isAdmin as checkIsAdmin, getAllActors } from '@/lib/contract';
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
@@ -80,9 +80,7 @@ export default function AdminPanel() {
         return;
       }
 
-      // Get all actors - we'll need to track them manually or use events
-      // For now, we'll use a simple approach: check common addresses
-      // In production, you'd use events to track all registered actors
+      // Load all actors by querying ActorRegistered events
       await loadActors();
     } catch (error) {
       console.error('Error loading admin panel:', error);
@@ -92,9 +90,18 @@ export default function AdminPanel() {
   };
 
   const loadActors = async () => {
-    // Note: This is a simplified version. In production, you'd query events
-    // to get all registered actors. For now, we'll show a message.
-    setActors([]);
+    try {
+      setLoading(true);
+      const allActors = await getAllActors();
+      console.log('Loaded actors:', allActors); // Debug log
+      setActors(allActors);
+    } catch (error: any) {
+      console.error('Error loading actors:', error);
+      alert(`Failed to load actors: ${error.message}`);
+      setActors([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApprove = async (actorAddress: string) => {
@@ -126,6 +133,7 @@ export default function AdminPanel() {
       );
       await tx.wait();
       alert('Actor rejected successfully!');
+      // Reload actors to reflect the change
       await loadActors();
     } catch (error: any) {
       console.error('Error rejecting actor:', error);
@@ -190,6 +198,12 @@ export default function AdminPanel() {
     );
   }
 
+  // Calculate counts for each tab (before filtering)
+  const pendingCount = actors.filter(actor => actor.approvalStatus === ActorApprovalStatus.Pending).length;
+  const approvedCount = actors.filter(actor => actor.approvalStatus === ActorApprovalStatus.Approved).length;
+  const rejectedCount = actors.filter(actor => actor.approvalStatus === ActorApprovalStatus.Rejected).length;
+
+  // Filter actors based on active tab
   const filteredActors = actors.filter(actor => {
     if (activeTab === 'pending') return actor.approvalStatus === ActorApprovalStatus.Pending;
     if (activeTab === 'approved') return actor.approvalStatus === ActorApprovalStatus.Approved;
@@ -207,19 +221,36 @@ export default function AdminPanel() {
       <div className="bg-white rounded-lg border border-border">
         <div className="border-b border-border">
           <div className="flex">
-            {(['pending', 'approved', 'rejected'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === tab
-                    ? 'text-secondary border-b-2 border-secondary'
-                    : 'text-text-muted hover:text-foreground'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)} ({filteredActors.length})
-              </button>
-            ))}
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'pending'
+                  ? 'text-secondary border-b-2 border-secondary'
+                  : 'text-text-muted hover:text-foreground'
+              }`}
+            >
+              Pending ({pendingCount})
+            </button>
+            <button
+              onClick={() => setActiveTab('approved')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'approved'
+                  ? 'text-secondary border-b-2 border-secondary'
+                  : 'text-text-muted hover:text-foreground'
+              }`}
+            >
+              Approved ({approvedCount})
+            </button>
+            <button
+              onClick={() => setActiveTab('rejected')}
+              className={`px-6 py-3 font-medium transition-colors ${
+                activeTab === 'rejected'
+                  ? 'text-secondary border-b-2 border-secondary'
+                  : 'text-text-muted hover:text-foreground'
+              }`}
+            >
+              Rejected ({rejectedCount})
+            </button>
           </div>
         </div>
 
@@ -241,8 +272,10 @@ export default function AdminPanel() {
                   className="border border-border rounded-lg p-4 flex justify-between items-start"
                 >
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-semibold text-foreground">{actor.name}</h3>
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-lg font-semibold text-foreground">
+                        {actor.name || 'Unnamed Actor'}
+                      </h3>
                       <span
                         className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
                           actor.approvalStatus
@@ -254,13 +287,18 @@ export default function AdminPanel() {
                         {getRoleLabel(actor.role)}
                       </span>
                     </div>
-                    <p className="text-sm text-text-muted mb-1">
-                      Address: {actor.actorAddress}
-                    </p>
-                    <p className="text-sm text-text-muted">Location: {actor.location}</p>
-                    <p className="text-xs text-text-muted mt-2">
-                      Active: {actor.isActive ? 'Yes' : 'No'}
-                    </p>
+                    <div className="space-y-1">
+                      <p className="text-sm text-text-muted">
+                        <span className="font-medium">Address:</span>{' '}
+                        <span className="font-mono text-xs">{actor.actorAddress || 'N/A'}</span>
+                      </p>
+                      <p className="text-sm text-text-muted">
+                        <span className="font-medium">Location:</span> {actor.location || 'N/A'}
+                      </p>
+                      <p className="text-xs text-text-muted mt-2">
+                        <span className="font-medium">Active:</span> {actor.isActive ? 'Yes' : 'No'}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2 ml-4">
                     {activeTab === 'pending' && (

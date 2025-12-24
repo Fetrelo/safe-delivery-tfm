@@ -128,10 +128,21 @@ export function convertIncident(incident: any): Incident {
 }
 
 export function convertActor(actor: any): Actor {
+  // Handle both object and array formats from ethers
+  const actorAddress = actor.actorAddress || actor[0] || '';
+  const name = actor.name || actor[1] || '';
+  const role = Number(actor.role !== undefined ? actor.role : (actor[2] !== undefined ? actor[2] : 0));
+  const location = actor.location || actor[3] || '';
+  const isActive = actor.isActive !== undefined ? actor.isActive : (actor[4] !== undefined ? actor[4] : true);
+  const approvalStatus = Number(actor.approvalStatus !== undefined ? actor.approvalStatus : (actor[5] !== undefined ? actor[5] : 0));
+  
   return {
-    ...actor,
-    role: Number(actor.role),
-    approvalStatus: Number(actor.approvalStatus),
+    actorAddress: String(actorAddress),
+    name: String(name),
+    role: role,
+    location: String(location),
+    isActive: Boolean(isActive),
+    approvalStatus: approvalStatus,
   };
 }
 
@@ -221,6 +232,43 @@ export async function getAllShipments(): Promise<Shipment[]> {
     return shipments;
   } catch (error) {
     console.error('Error getting all shipments:', error);
+    throw error;
+  }
+}
+
+// Get all actors by querying ActorRegistered events
+export async function getAllActors(): Promise<Actor[]> {
+  try {
+    const contract = await getReadOnlyContract();
+    const provider = await getProvider();
+    if (!provider) {
+      throw new Error('Provider not available');
+    }
+
+    // Query ActorRegistered events from block 0 to latest
+    const filter = contract.filters.ActorRegistered();
+    const events = await contract.queryFilter(filter, 0);
+    
+    // Get actor details for each address found in events
+    const actors: Actor[] = [];
+    for (const event of events) {
+      if (event.args && event.args[0]) {
+        const actorAddress = event.args[0] as string;
+        try {
+          const actor = await getActor(actorAddress);
+          // Only include if actor exists (address is not zero)
+          if (actor.actorAddress !== '0x0000000000000000000000000000000000000000') {
+            actors.push(actor);
+          }
+        } catch (error) {
+          console.warn(`Failed to get actor details for ${actorAddress}:`, error);
+        }
+      }
+    }
+    
+    return actors;
+  } catch (error) {
+    console.error('Error getting all actors:', error);
     throw error;
   }
 }
