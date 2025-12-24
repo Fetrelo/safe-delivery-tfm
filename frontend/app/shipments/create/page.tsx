@@ -3,17 +3,27 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getContract, getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
-import { ActorRole, getActor, isActorRegistered, isAdmin } from '@/lib/contract';
+import { ActorRole, getActor, isActorRegistered, isAdmin as checkIsAdmin } from '@/lib/contract';
 
 export default function CreateShipment() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
-  const [isUserAdmin, setIsUserAdmin] = useState(false);
   
   useEffect(() => {
     checkRegistration();
+    
+    // Listen for menu refresh events
+    const handleMenuRefresh = () => {
+      checkRegistration();
+    };
+    
+    window.addEventListener('menuRefresh', handleMenuRefresh);
+    
+    return () => {
+      window.removeEventListener('menuRefresh', handleMenuRefresh);
+    };
   }, []);
 
   const checkRegistration = async () => {
@@ -34,14 +44,12 @@ export default function CreateShipment() {
         return;
       }
 
-      // Check if user is admin (admins have access but cannot create shipments)
-      const adminStatus = await isAdmin(account);
-      setIsUserAdmin(adminStatus);
+      // Check if user is admin (admins cannot create shipments)
+      const adminStatus = await checkIsAdmin(account);
       
       if (adminStatus) {
-        // Admin cannot create shipments (only actors can)
-        // Set registered to true so they can see the page, but the form will be disabled
-        setIsRegistered(true);
+        // Admin cannot create shipments - redirect to admin panel
+        router.replace('/admin');
         return;
       }
 
@@ -55,6 +63,14 @@ export default function CreateShipment() {
       // If not registered, redirect to register page
       if (!registered) {
         router.replace('/actors/register');
+        return;
+      }
+
+      // Check if user has Sender role (only Senders can create shipments)
+      if (actor.role !== ActorRole.Sender) {
+        // User doesn't have Sender role - redirect to dashboard
+        router.replace('/');
+        return;
       }
     } catch (error) {
       console.error('Error checking registration:', error);
@@ -79,12 +95,6 @@ export default function CreateShipment() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Prevent admins from creating shipments
-    if (isUserAdmin) {
-      alert('Admins cannot create shipments. Only registered actors with the Sender role can create shipments.');
-      return;
-    }
-    
     if (!CONTRACT_ADDRESS) {
       alert('Contract not deployed. Please deploy the contract first.');
       return;
@@ -95,6 +105,14 @@ export default function CreateShipment() {
       const account = await getCurrentAccount();
       if (!account) {
         alert('Please connect your wallet');
+        return;
+      }
+
+      // Verify user has Sender role
+      const actor = await getActor(account);
+      if (actor.role !== ActorRole.Sender) {
+        alert('Only Senders can create shipments.');
+        setLoading(false);
         return;
       }
 
@@ -160,13 +178,6 @@ export default function CreateShipment() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-foreground mb-2">Create Shipment</h1>
         <p className="text-text-muted">Create a new shipment for tracking</p>
-        {isUserAdmin && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-yellow-800 text-sm">
-              <strong>Note:</strong> Admins cannot create shipments. Only registered actors with the Sender role can create shipments.
-            </p>
-          </div>
-        )}
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg border border-border p-6 max-w-2xl">
@@ -309,7 +320,7 @@ export default function CreateShipment() {
           <div className="flex gap-4 pt-4">
             <button
               type="submit"
-              disabled={loading || isUserAdmin}
+              disabled={loading}
               className="px-6 py-2 bg-secondary text-white rounded-md hover:bg-secondary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {loading ? 'Creating...' : 'Create Shipment'}

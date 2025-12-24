@@ -38,45 +38,45 @@ export enum ActorApprovalStatus {
   Rejected = 2,
 }
 
-// Type definitions matching contract structs
+// Type definitions matching contract structs (after conversion)
 export interface Shipment {
-  id: bigint;
+  id: number;
   sender: string;
   recipient: string;
   product: string;
   origin: string;
   destination: string;
-  dateCreated: bigint;
-  dateEstimatedDelivery: bigint;
-  dateDelivered: bigint;
+  dateCreated: number;
+  dateEstimatedDelivery: number;
+  dateDelivered: number;
   status: ShipmentStatus;
-  checkpointIds: bigint[];
-  incidentIds: bigint[];
+  checkpointIds: number[];
+  incidentIds: number[];
   requiresColdChain: boolean;
-  minTemperature: bigint;
-  maxTemperature: bigint;
+  minTemperature: number;
+  maxTemperature: number;
 }
 
 export interface Checkpoint {
-  id: bigint;
-  shipmentId: bigint;
+  id: number;
+  shipmentId: number;
   actor: string;
   location: string;
   checkpointType: string;
-  timestamp: bigint;
+  timestamp: number;
   notes: string;
-  temperature: bigint;
-  latitude: bigint;
-  longitude: bigint;
+  temperature: number;
+  latitude: number;
+  longitude: number;
 }
 
 export interface Incident {
-  id: bigint;
-  shipmentId: bigint;
+  id: number;
+  shipmentId: number;
   incidentType: IncidentType;
   reporter: string;
   description: string;
-  timestamp: bigint;
+  timestamp: number;
   resolved: boolean;
 }
 
@@ -91,39 +91,87 @@ export interface Actor {
 
 // Helper function to convert bigint arrays to numbers
 export function convertShipment(shipment: any): Shipment {
+  // Handle both object and array formats from ethers
+  const id = shipment.id !== undefined ? shipment.id : shipment[0];
+  const sender = shipment.sender !== undefined ? shipment.sender : shipment[1];
+  const recipient = shipment.recipient !== undefined ? shipment.recipient : shipment[2];
+  const product = shipment.product !== undefined ? shipment.product : shipment[3];
+  const origin = shipment.origin !== undefined ? shipment.origin : shipment[4];
+  const destination = shipment.destination !== undefined ? shipment.destination : shipment[5];
+  const dateCreated = shipment.dateCreated !== undefined ? shipment.dateCreated : shipment[6];
+  const dateEstimatedDelivery = shipment.dateEstimatedDelivery !== undefined ? shipment.dateEstimatedDelivery : shipment[7];
+  const dateDelivered = shipment.dateDelivered !== undefined ? shipment.dateDelivered : shipment[8];
+  const status = shipment.status !== undefined ? shipment.status : shipment[9];
+  const checkpointIds = shipment.checkpointIds !== undefined ? shipment.checkpointIds : shipment[10];
+  const incidentIds = shipment.incidentIds !== undefined ? shipment.incidentIds : shipment[11];
+  const requiresColdChain = shipment.requiresColdChain !== undefined ? shipment.requiresColdChain : shipment[12];
+  const minTemperature = shipment.minTemperature !== undefined ? shipment.minTemperature : shipment[13];
+  const maxTemperature = shipment.maxTemperature !== undefined ? shipment.maxTemperature : shipment[14];
+
   return {
-    ...shipment,
-    id: Number(shipment.id),
-    dateCreated: Number(shipment.dateCreated),
-    dateEstimatedDelivery: Number(shipment.dateEstimatedDelivery),
-    dateDelivered: Number(shipment.dateDelivered),
-    status: Number(shipment.status),
-    checkpointIds: shipment.checkpointIds.map((id: bigint) => Number(id)),
-    incidentIds: shipment.incidentIds.map((id: bigint) => Number(id)),
-    minTemperature: Number(shipment.minTemperature),
-    maxTemperature: Number(shipment.maxTemperature),
+    id: Number(id),
+    sender: String(sender),
+    recipient: String(recipient),
+    product: String(product),
+    origin: String(origin),
+    destination: String(destination),
+    dateCreated: Number(dateCreated),
+    dateEstimatedDelivery: Number(dateEstimatedDelivery),
+    dateDelivered: Number(dateDelivered),
+    status: Number(status),
+    checkpointIds: Array.isArray(checkpointIds) ? checkpointIds.map((id: any) => Number(id)) : [],
+    incidentIds: Array.isArray(incidentIds) ? incidentIds.map((id: any) => Number(id)) : [],
+    requiresColdChain: Boolean(requiresColdChain),
+    minTemperature: Number(minTemperature),
+    maxTemperature: Number(maxTemperature),
   };
 }
 
 export function convertCheckpoint(checkpoint: any): Checkpoint {
+  // Handle both object and array formats from ethers
+  const id = checkpoint.id !== undefined ? checkpoint.id : checkpoint[0];
+  const shipmentId = checkpoint.shipmentId !== undefined ? checkpoint.shipmentId : checkpoint[1];
+  const actor = checkpoint.actor !== undefined ? checkpoint.actor : checkpoint[2];
+  const location = checkpoint.location !== undefined ? checkpoint.location : checkpoint[3];
+  const checkpointType = checkpoint.checkpointType !== undefined ? checkpoint.checkpointType : checkpoint[4];
+  const timestamp = checkpoint.timestamp !== undefined ? checkpoint.timestamp : checkpoint[5];
+  const notes = checkpoint.notes !== undefined ? checkpoint.notes : checkpoint[6];
+  const temperature = checkpoint.temperature !== undefined ? checkpoint.temperature : checkpoint[7];
+  const latitude = checkpoint.latitude !== undefined ? checkpoint.latitude : checkpoint[8];
+  const longitude = checkpoint.longitude !== undefined ? checkpoint.longitude : checkpoint[9];
+
   return {
-    ...checkpoint,
-    id: Number(checkpoint.id),
-    shipmentId: Number(checkpoint.shipmentId),
-    timestamp: Number(checkpoint.timestamp),
-    temperature: Number(checkpoint.temperature),
-    latitude: Number(checkpoint.latitude),
-    longitude: Number(checkpoint.longitude),
+    id: Number(id),
+    shipmentId: Number(shipmentId),
+    actor: String(actor),
+    location: String(location),
+    checkpointType: String(checkpointType),
+    timestamp: Number(timestamp),
+    notes: String(notes),
+    temperature: Number(temperature),
+    latitude: Number(latitude),
+    longitude: Number(longitude),
   };
 }
 
 export function convertIncident(incident: any): Incident {
+  // Handle both object and array formats from ethers
+  const id = incident.id !== undefined ? incident.id : incident[0];
+  const shipmentId = incident.shipmentId !== undefined ? incident.shipmentId : incident[1];
+  const incidentType = incident.incidentType !== undefined ? incident.incidentType : incident[2];
+  const reporter = incident.reporter !== undefined ? incident.reporter : incident[3];
+  const description = incident.description !== undefined ? incident.description : incident[4];
+  const timestamp = incident.timestamp !== undefined ? incident.timestamp : incident[5];
+  const resolved = incident.resolved !== undefined ? incident.resolved : incident[6];
+
   return {
-    ...incident,
-    id: Number(incident.id),
-    shipmentId: Number(incident.shipmentId),
-    timestamp: Number(incident.timestamp),
-    incidentType: Number(incident.incidentType),
+    id: Number(id),
+    shipmentId: Number(shipmentId),
+    incidentType: Number(incidentType),
+    reporter: String(reporter),
+    description: String(description),
+    timestamp: Number(timestamp),
+    resolved: Boolean(resolved),
   };
 }
 

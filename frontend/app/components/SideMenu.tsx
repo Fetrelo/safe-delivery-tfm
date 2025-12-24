@@ -55,7 +55,8 @@ export default function SideMenu() {
       setIsRegistered(registered);
       
       if (registered) {
-        setUserRole(actor.role);
+        // Ensure role is cast to ActorRole enum
+        setUserRole(actor.role as ActorRole);
       } else {
         // User is not registered (only MetaMask connected)
         setUserRole(null);
@@ -64,6 +65,9 @@ export default function SideMenu() {
       // Check if user is admin (separate from actor registration)
       const adminStatus = await checkIsAdmin(account);
       setIsAdmin(adminStatus);
+      
+      // Trigger refresh of main content when menu state changes
+      window.dispatchEvent(new CustomEvent('menuRefresh'));
     } catch (error) {
       console.error('Error checking user role:', error);
       setIsRegistered(false);
@@ -89,9 +93,10 @@ export default function SideMenu() {
       return false;
     }
     
-    // Admins see all menu items (except register if they've submitted registration)
+    // Admins see all menu items (except register account and create shipment)
     if (isAdmin) {
-      if (item.href === '/actors/register' && hasSubmittedRegistration) return false;
+      if (item.href === '/actors/register') return false;
+      if (item.href === '/shipments/create') return false;
       return true;
     }
     
@@ -108,7 +113,18 @@ export default function SideMenu() {
     // Normal filtering for registered users (non-admins)
     // Note: ProtectedRoute will handle blocking access if not approved
     if (item.adminOnly) return false;
-    if (item.roles && userRole && !item.roles.includes(userRole)) return false;
+    
+    // Role-based filtering: if item requires specific roles, user must have one of those roles
+    if (item.roles) {
+      // If user doesn't have a role yet, hide the item
+      if (userRole === null || userRole === undefined) return false;
+      // If user's role is not in the required roles, hide the item
+      // Compare both enum values and numeric values to handle type differences
+      const userRoleValue = Number(userRole);
+      const hasMatchingRole = item.roles.some(role => Number(role) === userRoleValue);
+      if (!hasMatchingRole) return false;
+    }
+    
     return true;
   });
 

@@ -17,6 +17,19 @@ export default function ActiveShipments() {
     if (CONTRACT_ADDRESS) {
       checkRegistration();
     }
+    
+    // Listen for menu refresh events
+    const handleMenuRefresh = () => {
+      if (CONTRACT_ADDRESS) {
+        checkRegistration();
+      }
+    };
+    
+    window.addEventListener('menuRefresh', handleMenuRefresh);
+    
+    return () => {
+      window.removeEventListener('menuRefresh', handleMenuRefresh);
+    };
   }, []);
 
   const checkRegistration = async () => {

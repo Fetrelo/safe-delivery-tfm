@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Checkpoint } from '@/lib/contract';
 
@@ -13,17 +12,6 @@ const MapComponent = dynamic(() => import('./MapComponent'), {
     </div>
   )
 });
-import { Checkpoint } from '@/lib/contract';
-
-// Fix for default marker icons in Next.js
-if (typeof window !== 'undefined') {
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  });
-}
 
 interface ShipmentMapProps {
   checkpoints: Checkpoint[];

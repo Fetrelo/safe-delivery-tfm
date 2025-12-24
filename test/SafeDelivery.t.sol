@@ -52,12 +52,12 @@ contract SafeDeliveryTest is Test {
     }
 
     function _createShipment(
-        address _sender,
+        address _carrier,
         address _recipient,
         bool requiresColdChain
     ) internal returns (uint256) {
         uint256 estimatedDelivery = block.timestamp + 2 days;
-        vm.prank(_sender);
+        vm.prank(_carrier);
         return safeDelivery.createShipment(
             _recipient,
             "Test Product",
@@ -185,14 +185,15 @@ contract SafeDeliveryTest is Test {
     }
 
     function test_OnlyApprovedActorCanCreateShipment() public {
-        vm.prank(sender);
-        safeDelivery.registerActor("Test Sender", SafeDelivery.ActorRole.Sender, "Location");
-        // Not approved yet
+        // Register but don't approve a sender
+        address unapprovedSender = address(0x10);
+        vm.prank(unapprovedSender);
+        safeDelivery.registerActor("Unapproved Sender", SafeDelivery.ActorRole.Sender, "Location");
         
         _registerAndApproveActor(recipient, "Test Recipient", SafeDelivery.ActorRole.Recipient, "Location");
         
         uint256 estimatedDelivery = block.timestamp + 2 days;
-        vm.prank(sender);
+        vm.prank(unapprovedSender);
         vm.expectRevert("Actor must be approved");
         safeDelivery.createShipment(
             recipient,
@@ -673,15 +674,58 @@ contract SafeDeliveryTest is Test {
 
     function test_GetActorShipments() public {
         _registerAndApproveActor(sender, "Test Sender", SafeDelivery.ActorRole.Sender, "Location");
+        _registerAndApproveActor(carrier, "Test Carrier", SafeDelivery.ActorRole.Carrier, "Location");
+        _registerAndApproveActor(hub, "Test Hub", SafeDelivery.ActorRole.Hub, "Location");
         _registerAndApproveActor(recipient, "Test Recipient", SafeDelivery.ActorRole.Recipient, "Location");
         
         uint256 shipmentId1 = _createShipment(sender, recipient, false);
         uint256 shipmentId2 = _createShipment(sender, recipient, false);
         
+        // Sender and recipient should be in actorShipments after creation
         uint256[] memory senderShipments = safeDelivery.getActorShipments(sender);
         assertEq(senderShipments.length, 2);
         assertEq(senderShipments[0], shipmentId1);
         assertEq(senderShipments[1], shipmentId2);
+        
+        // Carrier should not be in actorShipments yet
+        uint256[] memory carrierShipmentsBefore = safeDelivery.getActorShipments(carrier);
+        assertEq(carrierShipmentsBefore.length, 0);
+        
+        // Carrier records a checkpoint - should be added to actorShipments
+        vm.prank(carrier);
+        safeDelivery.recordCheckpoint(
+            shipmentId1,
+            "Location 1",
+            "Pickup",
+            "Notes",
+            0,
+            int256(40000000),
+            int256(-70000000),
+            false
+        );
+        
+        // Carrier should now be in actorShipments for shipmentId1
+        uint256[] memory carrierShipmentsAfter = safeDelivery.getActorShipments(carrier);
+        assertEq(carrierShipmentsAfter.length, 1);
+        assertEq(carrierShipmentsAfter[0], shipmentId1);
+        
+        // Hub records a checkpoint - should be added to actorShipments
+        vm.prank(hub);
+        safeDelivery.recordCheckpoint(
+            shipmentId1,
+            "Location 2",
+            "Hub",
+            "Notes",
+            0,
+            int256(40000000),
+            int256(-70000000),
+            false
+        );
+        
+        // Hub should now be in actorShipments for shipmentId1
+        uint256[] memory hubShipments = safeDelivery.getActorShipments(hub);
+        assertEq(hubShipments.length, 1);
+        assertEq(hubShipments[0], shipmentId1);
     }
 
     function test_VerifyTemperatureCompliance() public {

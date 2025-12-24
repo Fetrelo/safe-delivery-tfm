@@ -439,6 +439,10 @@ contract SafeDelivery {
 
         shipment.checkpointIds.push(checkpointId);
 
+        // Add actor to actorShipments mapping if not already present
+        // This allows actors to see shipments they're involved in
+        _addActorToShipment(msg.sender, _shipmentId);
+
         // Update status based on checkpoint type
         updateStatusFromCheckpoint(_shipmentId, _checkpointType);
 
@@ -600,6 +604,19 @@ contract SafeDelivery {
     /**
      * @notice Create an incident (internal)
      */
+    /**
+     * @notice Add actor to actorShipments mapping if not already present
+     */
+    function _addActorToShipment(address _actor, uint256 _shipmentId) internal {
+        uint256[] storage actorShipmentList = actorShipments[_actor];
+        for (uint256 i = 0; i < actorShipmentList.length; i++) {
+            if (actorShipmentList[i] == _shipmentId) {
+                return; // Already added
+            }
+        }
+        actorShipments[_actor].push(_shipmentId);
+    }
+
     function _createIncident(
         uint256 _shipmentId,
         IncidentType _incidentType,

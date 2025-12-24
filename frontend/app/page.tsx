@@ -17,6 +17,17 @@ export default function Dashboard() {
 
   useEffect(() => {
     checkRegistration();
+    
+    // Listen for menu refresh events
+    const handleMenuRefresh = () => {
+      checkRegistration();
+    };
+    
+    window.addEventListener('menuRefresh', handleMenuRefresh);
+    
+    return () => {
+      window.removeEventListener('menuRefresh', handleMenuRefresh);
+    };
   }, []);
 
   const checkRegistration = async () => {

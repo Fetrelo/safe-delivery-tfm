@@ -12,6 +12,7 @@ import {
   Incident,
   getActor,
   isActorRegistered,
+  isAdmin,
 } from '@/lib/contract';
 import { getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
 import CheckpointModal from '@/app/components/CheckpointModal';
@@ -34,6 +35,19 @@ export default function ShipmentDetails() {
     if (CONTRACT_ADDRESS) {
       checkRegistrationAndLoad();
     }
+    
+    // Listen for menu refresh events
+    const handleMenuRefresh = () => {
+      if (CONTRACT_ADDRESS) {
+        checkRegistrationAndLoad();
+      }
+    };
+    
+    window.addEventListener('menuRefresh', handleMenuRefresh);
+    
+    return () => {
+      window.removeEventListener('menuRefresh', handleMenuRefresh);
+    };
   }, [shipmentId]);
 
   const checkRegistrationAndLoad = async () => {
@@ -320,7 +334,7 @@ export default function ShipmentDetails() {
                           {(item.data as Checkpoint).notes}
                         </p>
                       )}
-                      {(item.data as Checkpoint).temperature !== BigInt(0) && (
+                      {(item.data as Checkpoint).temperature !== 0 && (
                         <p className="text-sm text-text-muted mt-1">
                           Temperature: {Number((item.data as Checkpoint).temperature) / 10}°C
                         </p>
