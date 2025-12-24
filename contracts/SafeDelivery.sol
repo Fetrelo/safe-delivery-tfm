@@ -673,12 +673,12 @@ contract SafeDelivery {
             }
 
             if (!hasLostIncident) {
-                // Check if delay is more than 8 hours
-                if (elapsedTime > estimatedDuration + 8 hours) {
+                // Check if delay is more than 1 hour
+                if (elapsedTime > estimatedDuration + 1 hours) {
                     _createIncident(
                         _shipmentId,
                         IncidentType.Lost,
-                        "Shipment lost - delay exceeds 8 hours"
+                        "Shipment lost - delay exceeds 1 hour"
                     );
                 } else {
                     // Check if Delay incident already exists

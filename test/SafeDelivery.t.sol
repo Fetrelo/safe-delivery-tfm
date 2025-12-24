@@ -517,8 +517,8 @@ contract SafeDeliveryTest is Test {
             0
         );
         
-        // Move time forward beyond estimated delivery but less than 8 hours (to get Delay, not Lost)
-        vm.warp(block.timestamp + 1 days + 4 hours);
+        // Move time forward beyond estimated delivery but less than 1 hour (to get Delay, not Lost)
+        vm.warp(block.timestamp + 1 days + 30 minutes);
         
         vm.prank(carrier);
         safeDelivery.recordCheckpoint(
