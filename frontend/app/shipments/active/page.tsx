@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getActorShipments, getShipment, ShipmentStatus } from '@/lib/contract';
+import { getActorShipments, getShipment, getAllShipments, ShipmentStatus } from '@/lib/contract';
 import { CONTRACT_ADDRESS, getCurrentAccount } from '@/lib/web3';
 
 export default function ActiveShipments() {
@@ -10,6 +10,8 @@ export default function ActiveShipments() {
   const [loading, setLoading] = useState(true);
   const [isRegistered, setIsRegistered] = useState(false);
   const [checkingRegistration, setCheckingRegistration] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
 
   useEffect(() => {
     if (CONTRACT_ADDRESS) {
@@ -33,14 +35,15 @@ export default function ActiveShipments() {
       }
 
       // Check if user is admin (admins have access without registration)
-      const { getActor, isActorRegistered, isAdmin } = await import('@/lib/contract');
+      const { getActor, isActorRegistered, isAdmin, getAllShipments } = await import('@/lib/contract');
       const adminStatus = await isAdmin(account);
+      setIsUserAdmin(adminStatus);
       
       if (adminStatus) {
         // Admin has access to view pages
         setIsRegistered(true);
-        // Admins can view but we'll show empty list since they don't have actor shipments
-        setShipments([]);
+        // Load all active shipments for admin
+        await loadAllActiveShipments();
       } else {
         // Check if user is registered in the contract (not just MetaMask connected)
         const actor = await getActor(account);
@@ -51,14 +54,43 @@ export default function ActiveShipments() {
         
         // Only load shipments if user is registered
         if (registered) {
-          loadShipments();
+          await loadShipments();
+        } else {
+          setLoading(false);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking registration:', error);
       setIsRegistered(false);
+      setError(error.message || 'Failed to check registration');
+      setLoading(false);
     } finally {
       setCheckingRegistration(false);
+    }
+  };
+
+  const loadAllActiveShipments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { getAllShipments } = await import('@/lib/contract');
+      const allShipments = await getAllShipments();
+      
+      // Filter active shipments (not Delivered or Cancelled)
+      const activeShipments = allShipments.filter(
+        (s) =>
+          s.status !== ShipmentStatus.Delivered &&
+          s.status !== ShipmentStatus.Cancelled
+      );
+      
+      setShipments(activeShipments);
+    } catch (error: any) {
+      console.error('Error loading all active shipments:', error);
+      setError(error.message || 'Failed to load shipments');
+      setShipments([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -87,8 +119,10 @@ export default function ActiveShipments() {
       );
 
       setShipments(activeShipments);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading shipments:', error);
+      setError(error.message || 'Failed to load shipments');
+      setShipments([]);
     } finally {
       setLoading(false);
     }
@@ -114,12 +148,18 @@ export default function ActiveShipments() {
     return labels[status] || 'Unknown';
   };
 
-  if (checkingRegistration || loading) {
+  if (checkingRegistration) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-text-muted">
-          {checkingRegistration ? 'Checking registration...' : 'Loading active shipments...'}
-        </div>
+        <div className="text-lg text-text-muted">Checking registration...</div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-text-muted">Loading active shipments...</div>
       </div>
     );
   }
@@ -145,7 +185,12 @@ export default function ActiveShipments() {
         <p className="text-text-muted">View and manage your active shipments</p>
       </div>
 
-      {shipments.length === 0 ? (
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <p className="text-red-800 font-medium mb-2">Error loading shipments</p>
+          <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      ) : shipments.length === 0 ? (
         <div className="bg-white rounded-lg border border-border p-8 text-center">
           <p className="text-text-muted">No active shipments found</p>
         </div>

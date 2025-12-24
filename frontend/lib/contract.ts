@@ -154,45 +154,75 @@ export function isActorRegistered(actor: Actor): boolean {
 
 // Contract interaction functions
 export async function getShipment(shipmentId: number): Promise<Shipment> {
-  const contract = await getContract();
+  const contract = await getReadOnlyContract();
   const shipment = await contract.getShipment(shipmentId);
   return convertShipment(shipment);
 }
 
 export async function getCheckpoint(checkpointId: number): Promise<Checkpoint> {
-  const contract = await getContract();
+  const contract = await getReadOnlyContract();
   const checkpoint = await contract.getCheckpoint(checkpointId);
   return convertCheckpoint(checkpoint);
 }
 
 export async function getIncident(incidentId: number): Promise<Incident> {
-  const contract = await getContract();
+  const contract = await getReadOnlyContract();
   const incident = await contract.getIncident(incidentId);
   return convertIncident(incident);
 }
 
 export async function getActor(actorAddress: string): Promise<Actor> {
-  const contract = await getContract();
+  const contract = await getReadOnlyContract();
   const actor = await contract.getActor(actorAddress);
   return convertActor(actor);
 }
 
 export async function getShipmentCheckpoints(shipmentId: number): Promise<Checkpoint[]> {
-  const contract = await getContract();
+  const contract = await getReadOnlyContract();
   const checkpoints = await contract.getShipmentCheckpoints(shipmentId);
   return checkpoints.map(convertCheckpoint);
 }
 
 export async function getShipmentIncidents(shipmentId: number): Promise<Incident[]> {
-  const contract = await getContract();
+  const contract = await getReadOnlyContract();
   const incidents = await contract.getShipmentIncidents(shipmentId);
   return incidents.map(convertIncident);
 }
 
 export async function getActorShipments(actorAddress: string): Promise<number[]> {
-  const contract = await getContract();
+  const contract = await getReadOnlyContract();
   const shipmentIds = await contract.getActorShipments(actorAddress);
   return shipmentIds.map((id: bigint) => Number(id));
+}
+
+// Get next shipment ID (for querying all shipments)
+export async function getNextShipmentId(): Promise<number> {
+  const contract = await getReadOnlyContract();
+  const nextId = await contract.nextShipmentId();
+  return Number(nextId);
+}
+
+// Get all shipments (for admins)
+export async function getAllShipments(): Promise<Shipment[]> {
+  try {
+    const nextId = await getNextShipmentId();
+    const shipments: Shipment[] = [];
+    
+    for (let id = 1; id < nextId; id++) {
+      try {
+        const shipment = await getShipment(id);
+        shipments.push(shipment);
+      } catch (error) {
+        // Shipment doesn't exist, log warning and continue
+        console.warn(`Shipment ${id} does not exist, skipping...`);
+      }
+    }
+    
+    return shipments;
+  } catch (error) {
+    console.error('Error getting all shipments:', error);
+    throw error;
+  }
 }
 
 // Get read-only contract instance (for view functions that don't require signer)

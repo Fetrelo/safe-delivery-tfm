@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getActorShipments, getShipment, ShipmentStatus, ActorRole } from '@/lib/contract';
+import { getActorShipments, getShipment, getAllShipments, ShipmentStatus, ActorRole } from '@/lib/contract';
 import { getContract, CONTRACT_ADDRESS, getCurrentAccount } from '@/lib/web3';
 
 export default function Dashboard() {
@@ -12,6 +12,8 @@ export default function Dashboard() {
   const [account, setAccount] = useState<string | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [checkingRegistration, setCheckingRegistration] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
 
   useEffect(() => {
     checkRegistration();
@@ -35,14 +37,17 @@ export default function Dashboard() {
       setAccount(currentAccount);
       
       // Check if user is admin (admins have access without registration)
-      const { getActor, isActorRegistered, isAdmin } = await import('@/lib/contract');
+      const { getActor, isActorRegistered, isAdmin, getAllShipments } = await import('@/lib/contract');
       const adminStatus = await isAdmin(currentAccount);
+      setIsUserAdmin(adminStatus);
       
       if (adminStatus) {
         // Admin has access to all pages but cannot perform actor actions
         setIsRegistered(true);
         // Admins don't have an actor role, so userRole stays null
         // They can view but not create shipments or record checkpoints
+        // Load all shipments for admin
+        await loadAllShipments();
       } else {
         // Check if user is registered in the contract (not just MetaMask connected)
         const actor = await getActor(currentAccount);
@@ -54,14 +59,37 @@ export default function Dashboard() {
         // Only load shipments if user is registered
         if (registered) {
           setUserRole(Number(actor.role));
-          loadShipments(currentAccount, Number(actor.role));
+          await loadShipments(currentAccount, Number(actor.role));
+        } else {
+          setLoading(false);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error checking registration:', error);
       setIsRegistered(false);
+      setError(error.message || 'Failed to check registration');
+      setLoading(false);
     } finally {
       setCheckingRegistration(false);
+    }
+  };
+
+  const loadAllShipments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { getAllShipments } = await import('@/lib/contract');
+      const allShipments = await getAllShipments();
+      
+      // Filter based on role (for dashboard, show all shipments for admin)
+      setShipments(allShipments);
+    } catch (error: any) {
+      console.error('Error loading all shipments:', error);
+      setError(error.message || 'Failed to load shipments');
+      setShipments([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,8 +129,10 @@ export default function Dashboard() {
       }
 
       setShipments(filteredShipments);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading shipments:', error);
+      setError(error.message || 'Failed to load shipments');
+      setShipments([]);
     } finally {
       setLoading(false);
     }
@@ -132,12 +162,18 @@ export default function Dashboard() {
     return labels[status] || 'Unknown';
   };
 
-  if (checkingRegistration || loading) {
+  if (checkingRegistration) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-text-muted">
-          {checkingRegistration ? 'Checking registration...' : 'Loading shipments...'}
-        </div>
+        <div className="text-lg text-text-muted">Checking registration...</div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg text-text-muted">Loading shipments...</div>
       </div>
     );
   }
@@ -166,15 +202,22 @@ export default function Dashboard() {
         <p className="text-text-muted">View and manage your shipments</p>
       </div>
 
-      {shipments.length === 0 ? (
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <p className="text-red-800 font-medium mb-2">Error loading shipments</p>
+          <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      ) : shipments.length === 0 ? (
         <div className="bg-white rounded-lg border border-border p-8 text-center">
           <p className="text-text-muted mb-4">No shipments found</p>
-          <Link
-            href="/shipments/create"
-            className="inline-block px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary-dark transition-colors"
-          >
-            Create Your First Shipment
-          </Link>
+          {!isUserAdmin && (
+            <Link
+              href="/shipments/create"
+              className="inline-block px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary-dark transition-colors"
+            >
+              Create Your First Shipment
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid gap-4">
