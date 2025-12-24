@@ -40,7 +40,8 @@ export default function RegisterActor() {
       await tx.wait();
       
       alert('Actor registration submitted! Waiting for admin approval.');
-      router.push('/');
+      // Refresh the page to update the side menu
+      window.location.href = '/';
     } catch (error: any) {
       console.error('Error registering actor:', error);
       alert(`Failed to register: ${error.message}`);
@@ -68,7 +69,7 @@ export default function RegisterActor() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Register as Actor</h1>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Register Account</h1>
         <p className="text-text-muted">Register yourself as an actor in the logistics network</p>
       </div>
 

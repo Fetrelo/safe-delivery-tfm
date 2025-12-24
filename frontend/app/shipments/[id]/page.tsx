@@ -10,11 +10,12 @@ import {
   ActorRole,
   Checkpoint,
   Incident,
+  getActor,
+  isActorRegistered,
 } from '@/lib/contract';
 import { getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
 import CheckpointModal from '@/app/components/CheckpointModal';
 import ShipmentMap from '@/app/components/ShipmentMap';
-import { getActor } from '@/lib/contract';
 
 export default function ShipmentDetails() {
   const params = useParams();
@@ -31,9 +32,49 @@ export default function ShipmentDetails() {
 
   useEffect(() => {
     if (CONTRACT_ADDRESS) {
-      loadData();
+      checkRegistrationAndLoad();
     }
   }, [shipmentId]);
+
+  const checkRegistrationAndLoad = async () => {
+    try {
+      if (!CONTRACT_ADDRESS) {
+        router.replace('/actors/register');
+        return;
+      }
+
+      const account = await getCurrentAccount();
+      if (!account) {
+        // Don't redirect if wallet not connected - let user connect first
+        return;
+      }
+
+      // Check if user is admin (admins can view but not perform actor actions)
+      const adminStatus = await isAdmin(account);
+      
+      if (adminStatus) {
+        // Admin can view shipment details (without actor role)
+        await loadData();
+        return;
+      }
+
+      // Check if user is registered in the contract (not just MetaMask connected)
+      const actor = await getActor(account);
+      
+      // User is registered only if: exists, has valid role, is approved, and is active
+      const registered = isActorRegistered(actor);
+      
+      if (!registered) {
+        router.replace('/actors/register');
+        return;
+      }
+
+      await loadData();
+    } catch (error) {
+      console.error('Error checking registration:', error);
+      router.replace('/actors/register');
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -43,7 +84,7 @@ export default function ShipmentDetails() {
       
       if (account) {
         const actor = await getActor(account);
-        if (actor.actorAddress !== '0x0000000000000000000000000000000000000000') {
+        if (isActorRegistered(actor)) {
           setUserRole(actor.role);
         }
       }
@@ -160,7 +201,7 @@ export default function ShipmentDetails() {
             >
               {getStatusLabel(shipment.status)}
             </span>
-            {canRecordCheckpoint() && (
+            {canRecordCheckpoint() && userRole !== null && (
               <button
                 onClick={() => setShowCheckpointModal(true)}
                 className="px-4 py-2 bg-secondary text-white rounded-md hover:bg-secondary-dark transition-colors font-medium"

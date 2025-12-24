@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getContract, getCurrentAccount, CONTRACT_ADDRESS } from '@/lib/web3';
-import { getActor, ActorRole, ActorApprovalStatus } from '@/lib/contract';
+import { getActor, ActorRole, ActorApprovalStatus, isActorRegistered, isAdmin as checkIsAdmin } from '@/lib/contract';
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
@@ -10,12 +10,57 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [isRegistered, setIsRegistered] = useState<boolean | null>(null);
+  const [checkingRegistration, setCheckingRegistration] = useState(true);
 
   useEffect(() => {
-    if (CONTRACT_ADDRESS) {
-      checkAdminAndLoadActors();
+    checkRegistration();
+  }, []);
+
+  const checkRegistration = async () => {
+    try {
+      setCheckingRegistration(true);
+      if (!CONTRACT_ADDRESS) {
+        setCheckingRegistration(false);
+        setIsRegistered(false);
+        return;
+      }
+
+      const account = await getCurrentAccount();
+      if (!account) {
+        setCheckingRegistration(false);
+        setIsRegistered(false);
+        return;
+      }
+
+      // Check if user is admin (admins have access without registration)
+      const adminStatus = await checkIsAdmin(account);
+      setIsAdmin(adminStatus);
+
+      if (adminStatus) {
+        // Admin has access to admin panel without being registered as actor
+        setIsRegistered(true);
+        checkAdminAndLoadActors();
+      } else {
+        // Check if user is registered in the contract (not just MetaMask connected)
+        const actor = await getActor(account);
+        
+        // User is registered only if: exists, has valid role, is approved, and is active
+        const registered = isActorRegistered(actor);
+        setIsRegistered(registered);
+
+        // Only check admin status and load actors if user is registered
+        if (registered) {
+          checkAdminAndLoadActors();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking registration:', error);
+      setIsRegistered(false);
+    } finally {
+      setCheckingRegistration(false);
     }
-  }, [activeTab]);
+  };
 
   const checkAdminAndLoadActors = async () => {
     try {
@@ -26,12 +71,11 @@ export default function AdminPanel() {
         return;
       }
 
-      const contract = await getContract();
-      const adminAddress = await contract.admin();
-      const isUserAdmin = account.toLowerCase() === adminAddress.toLowerCase();
-      setIsAdmin(isUserAdmin);
+      // Check admin status using the contract function
+      const adminStatus = await checkIsAdmin(account);
+      setIsAdmin(adminStatus);
 
-      if (!isUserAdmin) {
+      if (!adminStatus) {
         setLoading(false);
         return;
       }
@@ -121,12 +165,18 @@ export default function AdminPanel() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  if (loading) {
+  if (checkingRegistration || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-text-muted">Loading admin panel...</div>
+        <div className="text-lg text-text-muted">
+          {checkingRegistration ? 'Checking registration...' : 'Loading admin panel...'}
+        </div>
       </div>
     );
+  }
+
+  if (!isRegistered) {
+    return null; // Will be redirected by ProtectedRoute
   }
 
   if (!isAdmin) {

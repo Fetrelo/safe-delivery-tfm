@@ -8,9 +8,11 @@ export default function MetaMaskButton() {
   const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
-    checkConnection();
+    // Only check for connection if user explicitly connected in this session
+    // This prevents auto-connect on page refresh
+    checkConnectionIfConnected();
     
-    // Listen for account changes
+    // Listen for account changes (if user switches accounts in MetaMask)
     if (typeof window !== 'undefined' && window.ethereum) {
       window.ethereum.on('accountsChanged', handleAccountsChanged);
       return () => {
@@ -19,7 +21,11 @@ export default function MetaMaskButton() {
     }
   }, []);
 
-  const checkConnection = async () => {
+  const checkConnectionIfConnected = async () => {
+    // Only check if we have a session flag that user connected
+    const wasConnected = typeof window !== 'undefined' && sessionStorage.getItem('metamask_connected') === 'true';
+    if (!wasConnected) return;
+    
     try {
       const currentAccount = await getCurrentAccount();
       setAccount(currentAccount);
@@ -31,8 +37,16 @@ export default function MetaMaskButton() {
   const handleAccountsChanged = (accounts: string[]) => {
     if (accounts.length === 0) {
       setAccount(null);
+      // Clear session storage if user disconnected in MetaMask
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('metamask_connected');
+      }
     } else {
       setAccount(accounts[0]);
+      // Ensure session storage is set if account changed
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('metamask_connected', 'true');
+      }
     }
   };
 
@@ -51,6 +65,10 @@ export default function MetaMaskButton() {
   const handleDisconnect = () => {
     disconnectWallet();
     setAccount(null);
+    // Clear session storage to prevent auto-connect on refresh
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('metamask_connected');
+    }
   };
 
   if (account) {

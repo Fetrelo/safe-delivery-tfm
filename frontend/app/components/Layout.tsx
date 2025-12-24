@@ -2,6 +2,7 @@
 
 import SideMenu from './SideMenu';
 import MetaMaskButton from './MetaMaskButton';
+import ProtectedRoute from './ProtectedRoute';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,7 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <MetaMaskButton />
         </header>
         <main className="flex-1 overflow-y-auto p-6">
-          {children}
+          <ProtectedRoute>{children}</ProtectedRoute>
         </main>
       </div>
     </div>

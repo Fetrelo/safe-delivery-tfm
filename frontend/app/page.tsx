@@ -10,36 +10,65 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<ActorRole | null>(null);
   const [account, setAccount] = useState<string | null>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [checkingRegistration, setCheckingRegistration] = useState(true);
 
   useEffect(() => {
-    loadShipments();
+    checkRegistration();
   }, []);
 
-  const loadShipments = async () => {
+  const checkRegistration = async () => {
+    if (!CONTRACT_ADDRESS) {
+      setCheckingRegistration(false);
+      setIsRegistered(false);
+      return;
+    }
+    
     try {
-      setLoading(true);
-      
-      if (!CONTRACT_ADDRESS) {
-        setLoading(false);
-        return;
-      }
-      
       const currentAccount = await getCurrentAccount();
       if (!currentAccount) {
-        setLoading(false);
+        setCheckingRegistration(false);
+        setIsRegistered(false);
         return;
       }
 
       setAccount(currentAccount);
       
-      // Get user's actor info
-      const contract = await getContract();
-      const actor = await contract.getActor(currentAccount);
+      // Check if user is admin (admins have access without registration)
+      const { getActor, isActorRegistered, isAdmin } = await import('@/lib/contract');
+      const adminStatus = await isAdmin(currentAccount);
       
-      if (actor.actorAddress !== '0x0000000000000000000000000000000000000000') {
-        setUserRole(Number(actor.role));
+      if (adminStatus) {
+        // Admin has access to all pages but cannot perform actor actions
+        setIsRegistered(true);
+        // Admins don't have an actor role, so userRole stays null
+        // They can view but not create shipments or record checkpoints
+      } else {
+        // Check if user is registered in the contract (not just MetaMask connected)
+        const actor = await getActor(currentAccount);
+        
+        // User is registered only if: exists, has valid role, is approved, and is active
+        const registered = isActorRegistered(actor);
+        setIsRegistered(registered);
+        
+        // Only load shipments if user is registered
+        if (registered) {
+          setUserRole(Number(actor.role));
+          loadShipments(currentAccount, Number(actor.role));
+        }
       }
+    } catch (error) {
+      console.error('Error checking registration:', error);
+      setIsRegistered(false);
+    } finally {
+      setCheckingRegistration(false);
+    }
+  };
 
+  const loadShipments = async (currentAccount: string, currentUserRole: ActorRole | null) => {
+    try {
+      setLoading(true);
+      
       // Get shipments based on role
       const shipmentIds = await getActorShipments(currentAccount);
       const shipmentData = await Promise.all(
@@ -51,7 +80,7 @@ export default function Dashboard() {
 
       // Filter based on role
       let filteredShipments = shipmentData;
-      if (userRole === ActorRole.Carrier) {
+      if (currentUserRole === ActorRole.Carrier) {
         // Carriers see Created, InTransit, OutForDelivery
         filteredShipments = shipmentData.filter(
           (s) =>
@@ -59,10 +88,10 @@ export default function Dashboard() {
             s.status === ShipmentStatus.InTransit ||
             s.status === ShipmentStatus.OutForDelivery
         );
-      } else if (userRole === ActorRole.Sender || userRole === ActorRole.Recipient) {
+      } else if (currentUserRole === ActorRole.Sender || currentUserRole === ActorRole.Recipient) {
         // Senders and Recipients see all their shipments
         filteredShipments = shipmentData;
-      } else if (userRole === ActorRole.Hub) {
+      } else if (currentUserRole === ActorRole.Hub) {
         // Hubs see InTransit and AtHub
         filteredShipments = shipmentData.filter(
           (s) =>
@@ -103,10 +132,12 @@ export default function Dashboard() {
     return labels[status] || 'Unknown';
   };
 
-  if (loading) {
+  if (checkingRegistration || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-text-muted">Loading shipments...</div>
+        <div className="text-lg text-text-muted">
+          {checkingRegistration ? 'Checking registration...' : 'Loading shipments...'}
+        </div>
       </div>
     );
   }
@@ -115,6 +146,15 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <p className="text-lg text-text-muted mb-4">Please connect your MetaMask wallet to view shipments</p>
+      </div>
+    );
+  }
+
+  // Registration check is handled by ProtectedRoute, but keep this as fallback
+  if (!isRegistered && !checkingRegistration) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <p className="text-lg text-text-muted mb-4">Redirecting to registration...</p>
       </div>
     );
   }

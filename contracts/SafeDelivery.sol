@@ -236,6 +236,13 @@ contract SafeDelivery {
     }
 
     /**
+     * @notice Check if an address is the admin
+     */
+    function isAdmin(address _address) public view returns (bool) {
+        return _address == admin;
+    }
+
+    /**
      * @notice Deactivate an actor (admin only)
      */
     function deactivateActor(address _actorAddress) public onlyAdmin {

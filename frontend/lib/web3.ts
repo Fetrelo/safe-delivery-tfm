@@ -31,10 +31,13 @@ export async function getProvider(): Promise<ethers.BrowserProvider | null> {
 // Get signer from MetaMask
 export async function getSigner(): Promise<ethers.JsonRpcSigner | null> {
   const provider = await getProvider();
-  if (provider) {
-    return await provider.getSigner();
-  }
-  return null;
+  if (!provider) return null;
+  
+  // Check if user has explicitly connected (has permission)
+  const account = await getCurrentAccount();
+  if (!account) return null;
+  
+  return await provider.getSigner();
 }
 
 // Get contract instance
@@ -88,23 +91,41 @@ export async function connectWallet(): Promise<string> {
     }
   }
 
+  // Mark as connected in this session
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('metamask_connected', 'true');
+  }
+  
   return accounts[0];
 }
 
 // Disconnect wallet (just clear local state)
 export function disconnectWallet() {
+  // Clear session storage to prevent auto-connect on next page load
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('metamask_connected');
+  }
   // MetaMask doesn't have a disconnect method, so we just clear local state
   // The actual connection remains but we stop tracking it
   return true;
 }
 
-// Get current account
+// Get current account (only if explicitly connected in this session)
+// Uses sessionStorage to track if user explicitly connected, preventing auto-connect on refresh
 export async function getCurrentAccount(): Promise<string | null> {
-  const provider = await getProvider();
-  if (!provider) return null;
+  if (typeof window === 'undefined' || !window.ethereum) return null;
   
-  const accounts = await provider.listAccounts();
-  return accounts.length > 0 ? accounts[0].address : null;
+  // Check if user explicitly connected in this session
+  const wasConnected = sessionStorage.getItem('metamask_connected') === 'true';
+  if (!wasConnected) return null;
+  
+  try {
+    // Check if we have permission to access accounts
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    return accounts.length > 0 ? accounts[0] : null;
+  } catch (error) {
+    return null;
+  }
 }
 
 // Check if wallet is connected

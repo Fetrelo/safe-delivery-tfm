@@ -2,18 +2,65 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getCurrentAccount, getActorShipments, getShipment, ShipmentStatus } from '@/lib/contract';
-import { CONTRACT_ADDRESS } from '@/lib/web3';
+import { getActorShipments, getShipment, ShipmentStatus } from '@/lib/contract';
+import { CONTRACT_ADDRESS, getCurrentAccount } from '@/lib/web3';
 
 export default function ActiveShipments() {
   const [shipments, setShipments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [checkingRegistration, setCheckingRegistration] = useState(true);
 
   useEffect(() => {
     if (CONTRACT_ADDRESS) {
-      loadShipments();
+      checkRegistration();
     }
   }, []);
+
+  const checkRegistration = async () => {
+    try {
+      if (!CONTRACT_ADDRESS) {
+        setCheckingRegistration(false);
+        setIsRegistered(false);
+        return;
+      }
+
+      const account = await getCurrentAccount();
+      if (!account) {
+        setCheckingRegistration(false);
+        setIsRegistered(false);
+        return;
+      }
+
+      // Check if user is admin (admins have access without registration)
+      const { getActor, isActorRegistered, isAdmin } = await import('@/lib/contract');
+      const adminStatus = await isAdmin(account);
+      
+      if (adminStatus) {
+        // Admin has access to view pages
+        setIsRegistered(true);
+        // Admins can view but we'll show empty list since they don't have actor shipments
+        setShipments([]);
+      } else {
+        // Check if user is registered in the contract (not just MetaMask connected)
+        const actor = await getActor(account);
+        
+        // User is registered only if: exists, has valid role, is approved, and is active
+        const registered = isActorRegistered(actor);
+        setIsRegistered(registered);
+        
+        // Only load shipments if user is registered
+        if (registered) {
+          loadShipments();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking registration:', error);
+      setIsRegistered(false);
+    } finally {
+      setCheckingRegistration(false);
+    }
+  };
 
   const loadShipments = async () => {
     try {
@@ -67,10 +114,26 @@ export default function ActiveShipments() {
     return labels[status] || 'Unknown';
   };
 
-  if (loading) {
+  if (checkingRegistration || loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg text-text-muted">Loading active shipments...</div>
+        <div className="text-lg text-text-muted">
+          {checkingRegistration ? 'Checking registration...' : 'Loading active shipments...'}
+        </div>
+      </div>
+    );
+  }
+
+  if (!isRegistered) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <p className="text-lg text-text-muted mb-4">You need to register your account first</p>
+        <Link
+          href="/actors/register"
+          className="px-6 py-2 bg-secondary text-white rounded-md hover:bg-secondary-dark transition-colors font-medium"
+        >
+          Register Account
+        </Link>
       </div>
     );
   }

@@ -713,6 +713,25 @@
   },
   {
     "type": "function",
+    "name": "isAdmin",
+    "inputs": [
+      {
+        "name": "_address",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "nextCheckpointId",
     "inputs": [],
     "outputs": [

@@ -1,5 +1,8 @@
 import { ethers } from 'ethers';
-import { getContract, getSigner } from './web3';
+import { getContract, getSigner, getProvider, CONTRACT_ADDRESS } from './web3';
+import CONTRACT_ABI_JSON from './contract-abi.json';
+
+const CONTRACT_ABI = CONTRACT_ABI_JSON as const;
 
 // Contract types and enums
 export enum ShipmentStatus {
@@ -132,6 +135,23 @@ export function convertActor(actor: any): Actor {
   };
 }
 
+// Helper function to check if an actor is registered and approved
+export function isActorRegistered(actor: Actor): boolean {
+  // Actor must exist (address is not zero)
+  const exists = actor.actorAddress !== '0x0000000000000000000000000000000000000000';
+  
+  // Actor must have a valid role (not None)
+  const hasValidRole = actor.role !== ActorRole.None;
+  
+  // Actor must be approved
+  const isApproved = actor.approvalStatus === ActorApprovalStatus.Approved;
+  
+  // Actor must be active
+  const isActive = actor.isActive;
+  
+  return exists && hasValidRole && isApproved && isActive;
+}
+
 // Contract interaction functions
 export async function getShipment(shipmentId: number): Promise<Shipment> {
   const contract = await getContract();
@@ -175,3 +195,25 @@ export async function getActorShipments(actorAddress: string): Promise<number[]>
   return shipmentIds.map((id: bigint) => Number(id));
 }
 
+// Get read-only contract instance (for view functions that don't require signer)
+async function getReadOnlyContract() {
+  if (!CONTRACT_ADDRESS) {
+    throw new Error('Contract address not set');
+  }
+  const provider = await getProvider();
+  if (!provider) {
+    throw new Error('Provider not available');
+  }
+  return new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+}
+
+export async function isAdmin(address: string): Promise<boolean> {
+  try {
+    if (!CONTRACT_ADDRESS) return false;
+    const contract = await getReadOnlyContract();
+    return await contract.isAdmin(address);
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+}
