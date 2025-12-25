@@ -1,0 +1,183 @@
+@startuml Actor Registration Flow Sequence Diagram
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowThickness 2
+skinparam sequenceLifeLineBorderColor #000000
+skinparam sequenceLifeLineBackgroundColor #E8F4F8
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceActorBackgroundColor #D0E8F2
+
+title Actor Registration and Approval Flow
+
+actor "User\n(Wallet)" as User
+participant "Frontend\nRegister Page" as RegisterPage
+participant "MetaMask\nWallet" as MetaMask
+participant "SafeDelivery\nContract" as Contract
+database "Blockchain\nStorage" as Blockchain
+actor "Admin\n(Wallet)" as Admin
+participant "Frontend\nAdmin Panel" as AdminPanel
+
+== Registration Request ==
+
+User -> RegisterPage: Navigate to /actors/register
+activate RegisterPage
+
+User -> MetaMask: Connect Wallet
+activate MetaMask
+MetaMask --> User: Wallet Connected
+deactivate MetaMask
+
+RegisterPage -> Contract: getActor(userAddress)
+activate Contract
+Contract -> Blockchain: Query actor data
+Blockchain --> Contract: Actor data (or empty)
+Contract --> RegisterPage: Actor status
+deactivate Contract
+
+alt Actor Already Exists
+    RegisterPage --> User: Display current status\n(Pending/Approved/Rejected)
+else Actor Not Registered
+    User -> RegisterPage: Fill form\n(name, role, location)
+    User -> RegisterPage: Submit registration
+    activate RegisterPage
+    RegisterPage -> MetaMask: Request transaction signature
+    activate MetaMask
+    MetaMask --> User: Show transaction for approval
+    User -> MetaMask: Approve transaction
+    MetaMask --> RegisterPage: Transaction signed
+    deactivate MetaMask
+    RegisterPage -> Contract: registerActor(name, role, location)
+    activate Contract
+    Contract -> Contract: Validate (not already registered, valid role)
+    Contract -> Blockchain: Store Actor\n{address, name, role, location,\nisActive: true,\napprovalStatus: Pending}
+    Contract -> Contract: emit ActorRegistered(actorAddress, name, role)
+    Contract --> RegisterPage: Transaction confirmed
+    deactivate Contract
+    RegisterPage -> Contract: getActor(userAddress) [refresh]
+    activate Contract
+    Contract -> Blockchain: Query actor data
+    Blockchain --> Contract: Actor with Pending status
+    Contract --> RegisterPage: Actor data (Pending)
+    deactivate Contract
+    RegisterPage --> User: Registration successful!\nWaiting for admin approval
+    deactivate RegisterPage
+end
+
+== Admin Review ==
+
+Admin -> AdminPanel: Navigate to /admin
+activate AdminPanel
+AdminPanel -> Contract: getAllActors() [query events]
+activate Contract
+Contract -> Blockchain: Query ActorRegistered events
+Blockchain --> Contract: All registered actors
+Contract --> AdminPanel: List of actors
+deactivate Contract
+
+AdminPanel -> Contract: getActor(actorAddress) [for each]
+activate Contract
+Contract -> Blockchain: Query actor data
+Blockchain --> Contract: Actor data with approvalStatus
+Contract --> AdminPanel: Actor details
+deactivate Contract
+
+AdminPanel --> Admin: Display actors grouped by status\n(Pending / Approved / Rejected)
+
+== Approval Flow ==
+
+alt Admin Approves Actor
+    Admin -> AdminPanel: Click "Approve" button
+    activate AdminPanel
+    AdminPanel -> MetaMask: Request transaction signature
+    activate MetaMask
+    MetaMask --> Admin: Show transaction for approval
+    Admin -> MetaMask: Approve transaction
+    MetaMask --> AdminPanel: Transaction signed
+    deactivate MetaMask
+    AdminPanel -> Contract: setActorApprovalStatus(actorAddress, Approved)
+    activate Contract
+    Contract -> Contract: Validate (onlyAdmin, actor exists)
+    Contract -> Blockchain: Update actor.approvalStatus = Approved
+    Contract -> Contract: emit ActorApprovalStatusChanged(actorAddress, Approved)
+    Contract --> AdminPanel: Transaction confirmed
+    deactivate Contract
+    AdminPanel -> Contract: getAllActors() [refresh]
+    activate Contract
+    Contract -> Blockchain: Query updated actors
+    Blockchain --> Contract: Updated actor list
+    Contract --> AdminPanel: Updated list
+    deactivate Contract
+    AdminPanel --> Admin: Actor approved successfully!
+    deactivate AdminPanel
+    note right: Actor can now interact with the system\n(create shipments, record checkpoints, etc.)
+else Admin Rejects Actor
+    Admin -> AdminPanel: Click "Reject" button
+    activate AdminPanel
+    AdminPanel -> MetaMask: Request transaction signature
+    activate MetaMask
+    MetaMask --> Admin: Show transaction for approval
+    Admin -> MetaMask: Approve transaction
+    MetaMask --> AdminPanel: Transaction signed
+    deactivate MetaMask
+    AdminPanel -> Contract: setActorApprovalStatus(actorAddress, Rejected)
+    activate Contract
+    Contract -> Contract: Validate (onlyAdmin, actor exists)
+    Contract -> Blockchain: Update actor.approvalStatus = Rejected
+    Contract -> Contract: emit ActorApprovalStatusChanged(actorAddress, Rejected)
+    Contract --> AdminPanel: Transaction confirmed
+    deactivate Contract
+    AdminPanel -> Contract: getAllActors() [refresh]
+    activate Contract
+    Contract -> Blockchain: Query updated actors
+    Blockchain --> Contract: Updated actor list
+    Contract --> AdminPanel: Updated list
+    deactivate Contract
+    AdminPanel --> Admin: Actor rejected
+    deactivate AdminPanel
+    note right: Actor cannot interact with the system\n(Rejected status prevents access)
+end
+
+== Status Check ==
+
+User -> RegisterPage: Refresh page / Check status
+activate RegisterPage
+RegisterPage -> Contract: getActor(userAddress)
+activate Contract
+Contract -> Blockchain: Query actor data
+Blockchain --> Contract: Actor with updated approvalStatus
+Contract --> RegisterPage: Actor data
+deactivate Contract
+
+alt Status is Approved
+    RegisterPage --> User: Status: Approved ✓\nYou can now use the system
+    note right: User can now:\n- Create shipments (if Sender)\n- Record checkpoints\n- View shipments\n- Access role-specific features
+else Status is Pending
+    RegisterPage --> User: Status: Pending ⏳\nWaiting for admin approval
+else Status is Rejected
+    RegisterPage --> User: Status: Rejected ✗\nYour registration was rejected
+end
+deactivate RegisterPage
+
+== Additional Admin Actions ==
+
+Admin -> AdminPanel: Deactivate actor (not implemented yet)
+activate AdminPanel
+AdminPanel -> MetaMask: Request transaction signature
+activate MetaMask
+MetaMask --> Admin: Show transaction
+Admin -> MetaMask: Approve
+MetaMask --> AdminPanel: Transaction signed
+deactivate MetaMask
+AdminPanel -> Contract: deactivateActor(actorAddress)
+activate Contract
+Contract -> Contract: Validate (onlyAdmin, actor exists)
+Contract -> Blockchain: Update actor.isActive = false
+Contract --> AdminPanel: Transaction confirmed
+deactivate Contract
+AdminPanel --> Admin: Actor deactivated
+deactivate AdminPanel
+note right: Deactivated actors cannot interact\n(even if previously approved)
+
+@enduml
+

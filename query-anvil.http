@@ -1,0 +1,153 @@
+### Anvil Local Network - JSON-RPC Queries
+### Use with REST Client extension in VS Code/Cursor
+### Make sure Anvil is running: anvil
+
+@baseUrl = http://localhost:8545
+@contractAddress = 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+### Get Block Number
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_blockNumber",
+  "params": [],
+  "id": 1
+}
+
+### Get Account Balance (Admin - Anvil Account #0)
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getBalance",
+  "params": ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", "latest"],
+  "id": 2
+}
+
+### Get Latest Block
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getBlockByNumber",
+  "params": ["latest", false],
+  "id": 3
+}
+
+### Call Contract: admin()
+### Function selector: 0x8da5cb5b (cast sig "admin()")
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_call",
+  "params": [{
+    "to": "{{contractAddress}}",
+    "data": "0x8da5cb5b"
+  }, "latest"],
+  "id": 4
+}
+
+### Call Contract: nextShipmentId()
+### Function selector: Get with: cast sig "nextShipmentId()"
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_call",
+  "params": [{
+    "to": "{{contractAddress}}",
+    "data": "0x"
+  }, "latest"],
+  "id": 5
+}
+
+### Call Contract: shipments(uint256) - Get Shipment #1
+### Function selector: cast sig "shipments(uint256)"
+### Then encode: cast calldata "shipments(uint256)" 1
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_call",
+  "params": [{
+    "to": "{{contractAddress}}",
+    "data": "0x"
+  }, "latest"],
+  "id": 6
+}
+
+### Get Transaction Receipt
+### Replace <tx_hash> with actual transaction hash
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getTransactionReceipt",
+  "params": ["0x<tx_hash>"],
+  "id": 7
+}
+
+### Get Transaction by Hash
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getTransactionByHash",
+  "params": ["0x<tx_hash>"],
+  "id": 8
+}
+
+### Get Storage at Slot 0
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getStorageAt",
+  "params": ["{{contractAddress}}", "0x0", "latest"],
+  "id": 9
+}
+
+### Get Code at Contract Address
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_getCode",
+  "params": ["{{contractAddress}}", "latest"],
+  "id": 10
+}
+
+### Get Chain ID
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_chainId",
+  "params": [],
+  "id": 11
+}
+
+### Get Accounts (Anvil specific)
+POST {{baseUrl}}
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "method": "eth_accounts",
+  "params": [],
+  "id": 12
+}
+

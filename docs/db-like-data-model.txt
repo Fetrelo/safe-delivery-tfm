@@ -1,0 +1,77 @@
+// =======================
+// ENUM TABLES
+// =======================
+
+Table shipment_status {
+  id int [pk, increment]
+  name varchar [unique, not null] // Created, InTransit, Delivered, Cancelled, etc.
+}
+
+Table incident_type {
+  id int [pk, increment]
+  name varchar [unique, not null] // Delay, Damage, Lost, TempViolation
+}
+
+Table actor_role {
+  id int [pk, increment]
+  name varchar [unique, not null] // Sender, Recipient, Carrier, Inspector, Admin
+}
+
+Table actor_approval_status {
+  id int [pk, increment]
+  name varchar [unique, not null] // Pending, Approved, Rejected
+}
+
+
+// =======================
+// CORE TABLES
+// =======================
+
+Table actors {
+  actor_address varchar [pk] // Ethereum address
+  name varchar
+  role_id int [not null, ref: > actor_role.id]
+  location varchar
+  is_active boolean
+  approval_status_id int [not null, ref: > actor_approval_status.id]
+}
+
+Table shipments {
+  id bigint [pk, increment]
+  sender varchar [not null, ref: > actors.actor_address]
+  recipient varchar [not null, ref: > actors.actor_address]
+  product varchar
+  origin varchar
+  destination varchar
+  date_created bigint // unix timestamp (seconds)
+  date_estimated_delivery bigint
+  date_delivered bigint // 0 if not delivered
+  status_id int [not null, ref: > shipment_status.id]
+  requires_cold_chain boolean
+  min_temperature int // celsius * 10
+  max_temperature int // celsius * 10
+}
+
+Table checkpoints {
+  id bigint [pk, increment]
+  shipment_id bigint [not null, ref: > shipments.id]
+  actor varchar [not null, ref: > actors.actor_address]
+  location varchar
+  checkpoint_type varchar // Pickup, Hub, Transit, Delivery, Report
+  timestamp bigint // unix timestamp
+  notes text
+  temperature int // celsius * 10, 0 if N/A
+  latitude int // * 10^6
+  longitude int // * 10^6
+}
+
+Table incidents {
+  id bigint [pk, increment]
+  shipment_id bigint [not null, ref: > shipments.id]
+  incident_type_id int [not null, ref: > incident_type.id]
+  reporter varchar [not null, ref: > actors.actor_address]
+  description text
+  timestamp bigint // unix timestamp
+  resolved boolean // always false
+}
+

@@ -77,13 +77,44 @@ export async function GET(request: NextRequest) {
               const latitude = latestCheckpoint.latitude || 0;
               const longitude = latestCheckpoint.longitude || 0;
               
+              // Determine temperature based on cold chain requirements
+              let temperature = 0; // Default: no temperature monitoring
+              
+              if (shipment.requiresColdChain) {
+                // Generate a valid temperature within the shipment's range
+                // Temperatures are stored as celsius * 10 in the contract
+                const minTemp = Number(shipment.minTemperature);
+                const maxTemp = Number(shipment.maxTemperature);
+                
+                if (minTemp === maxTemp) {
+                  // If range is a single value, use it directly
+                  temperature = minTemp;
+                } else {
+                  // Generate random temperature within range (in contract format)
+                  // Add some randomness to simulate real sensor readings
+                  const range = maxTemp - minTemp;
+                  const randomOffset = Math.floor(Math.random() * (range + 1)); // +1 to include maxTemp
+                  temperature = minTemp + randomOffset;
+                  
+                  // Add small variation (±0.5°C = ±5 in contract format) for realism
+                  // but ensure it stays within bounds
+                  const variation = Math.floor((Math.random() - 0.5) * 10);
+                  temperature = Math.max(minTemp, Math.min(maxTemp, temperature + variation));
+
+                  const shoulOverrideTemperature = Math.random() < 0.1; // 10% chance to override temperature (for testing purposes)
+                  if (shoulOverrideTemperature) {
+                    temperature = maxTemp + 1; // override temperature to the maximum value
+                  }
+                }
+              }
+              
               // Record checkpoint with "Report" type (doesn't change status)
               const tx = await contract.recordCheckpoint(
                 id,
                 location,
                 'Report',
                 'Automatic checkpoint recorded by sensor',
-                0, // temperature (0 if not applicable)
+                temperature,
                 latitude,
                 longitude,
                 false // hasDamage

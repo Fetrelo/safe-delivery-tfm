@@ -85,7 +85,7 @@ Safe Delivery addresses these issues by leveraging blockchain technology to crea
 ### Requirements
 
 - **Node.js** v18 or higher
-- **npm** or **yarn**
+- **npm**
 - **MetaMask** browser extension installed
 - **Foundry** (Forge, Cast, Anvil) - [Installation Guide](https://book.getfoundry.sh/getting-started/installation)
 - **Alchemy account** (for Sepolia testnet RPC) or use public RPC endpoints
@@ -172,18 +172,19 @@ For local development:
 anvil
 
 # Terminal 2: Deploy to local network
-forge script script/Deploy.s.sol:DeployScript --rpc-url http://localhost:8545 --broadcast
+export PRIVATE_KEY=ANVIL_ACCOUNT_PK
+forge script contracts/script/Deploy.s.sol:DeployScript --rpc-url http://localhost:8545 --broadcast
 
 # Terminal 3: Start frontend (update .env.local with local contract address)
 cd frontend
 npm run dev
 ```
 
-## Smart Contracts Desplegados
+## Deployed smart contracts
 
-- **Red**: Ethereum Sepolia Testnet
-- **Contrato Principal**: [`0x7803d73C572f1FEa22542f58cE827ef5236cf1cF`](https://sepolia.etherscan.io/address/0x7803d73C572f1FEa22542f58cE827ef5236cf1cF#code)
-- **Explorador**: [Etherscan Sepolia](https://sepolia.etherscan.io/address/0x7803d73C572f1FEa22542f58cE827ef5236cf1cF#code)
+- **Net: Ethereum Sepolia Testnet
+- **Contrato Contract**: [`0x7803d73C572f1FEa22542f58cE827ef5236cf1cF`](https://sepolia.etherscan.io/address/0x7803d73C572f1FEa22542f58cE827ef5236cf1cF#code)
+- **Explorer**: [Etherscan Sepolia](https://sepolia.etherscan.io/address/0x7803d73C572f1FEa22542f58cE827ef5236cf1cF#code)
 
 ## Use cases
 
@@ -220,7 +221,7 @@ npm run dev
 
 6. **Incident Management**
    - Automatic detection of delays (beyond estimated delivery)
-   - Automatic detection of lost shipments (8+ hours delay)
+   - Automatic detection of lost shipments (1+ hour delay)
    - Temperature violation detection
    - Damage reporting during checkpoints
    - All incidents are permanently recorded on-chain
@@ -229,6 +230,7 @@ npm run dev
    - Automatic checkpoint recording every 10 minutes
    - For shipments in "InTransit" or "OutForDelivery" status
    - Uses Sensor actor role with private key authentication
+   - Simulates the use case of an IoT device
 
 8. **Role-based Access Control**
    - **Sender**: Create shipments, view own shipments, record Report checkpoints
@@ -365,3 +367,17 @@ MIT License
 - [Deployment Guide](./DEPLOY_SEPOLIA_STEPS.md)
 - [Auto-checkpoint Setup](./AUTO_CHECKPOINT_SETUP.md)
 - [Quick Start Guide](./QUICK_START.md)
+- [Querying Anvil Guide](./QUERY_ANVIL.md)
+- [MCP Server Setup](./mcp-server/MCP_SETUP.md) - Query contract data directly through AI assistant
+
+
+(0) 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (Admin)
+(1) 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (Sender)
+(2) 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (Recipient 2)
+(3) 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (Carrier)
+(4) 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (Hub)
+(5) 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc (Recipient)
+(6) 0x976EA74026E726554dB657fA54763abd0C3a0aa9 (Sensor)
+(7) 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 (10000.000000000000000000 ETH)
+(8) 0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f (10000.000000000000000000 ETH)
+(9) 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (Inspector)

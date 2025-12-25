@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "safe-delivery": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/safe-delivery/mcp-server/dist/index.js"
+      ],
+      "env": {
+        "ANVIL_RPC_URL": "http://localhost:8545",
+        "CONTRACT_ADDRESS": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      }
+    }
+  }
+}
+

@@ -1,0 +1,166 @@
+@startuml Shipment Lifecycle Sequence Diagram
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam sequenceArrowThickness 2
+skinparam sequenceLifeLineBorderColor #000000
+skinparam sequenceLifeLineBackgroundColor #E8F4F8
+skinparam sequenceActorBorderColor #000000
+skinparam sequenceActorBackgroundColor #D0E8F2
+
+title Shipment Lifecycle - Complete Flow
+
+actor Sender
+actor Carrier
+actor Hub as "Hub\nOperator"
+actor Sensor as "IoT\nSensor"
+actor Recipient
+participant "SafeDelivery\nContract" as Contract
+database "Blockchain\nStorage" as Blockchain
+
+== Shipment Creation ==
+Sender -> Contract: createShipment(recipient, product, origin, destination, requiresColdChain, minTemp, maxTemp, estimatedDate)
+activate Contract
+Contract -> Blockchain: Store Shipment (Status: Created)
+Contract --> Sender: Return shipmentId
+deactivate Contract
+note right: Shipment created\nStatus: Created
+
+== Normal Flow: Pickup & Transit ==
+
+Sender -> Contract: recordCheckpoint(shipmentId, "Pickup", ...)
+activate Contract
+Contract -> Contract: Validate actor role (Carrier/Sensor)
+Contract -> Blockchain: Create Checkpoint
+Contract -> Contract: updateStatusFromCheckpoint()
+Contract -> Blockchain: Update Status: InTransit
+Contract -> Contract: Check temperature compliance
+Contract -> Contract: Check delays/lost
+Contract --> Sender: Checkpoint recorded
+deactivate Contract
+note right: Status changed:\nCreated → InTransit
+
+alt During Transit (optional)
+    Carrier -> Contract: recordCheckpoint(shipmentId, "Transit", ...)
+    activate Contract
+    Contract -> Blockchain: Create Checkpoint (no status change)
+    Contract -> Contract: Check temperature compliance
+    Contract -> Contract: Check delays/lost
+    Contract --> Carrier: Checkpoint recorded
+    deactivate Contract
+    note right: Status remains:\nInTransit
+end
+
+alt Auto-checkpoint by Sensor (optional)
+    Sensor -> Contract: recordCheckpoint(shipmentId, "Report", temperature, ...)
+    activate Contract
+    Contract -> Contract: Generate valid temperature\n(within min/max range)
+    Contract -> Blockchain: Create Checkpoint (no status change)
+    Contract -> Contract: Check temperature compliance
+    Contract -> Contract: Check delays/lost
+    Contract --> Sensor: Checkpoint recorded
+    deactivate Contract
+    note right: Status remains:\nInTransit\nValid temperature reported
+end
+
+== Hub Processing ==
+
+Hub -> Contract: recordCheckpoint(shipmentId, "Hub", ...)
+activate Contract
+Contract -> Contract: Validate actor role (Hub/Sensor)
+Contract -> Blockchain: Create Checkpoint
+Contract -> Contract: updateStatusFromCheckpoint()
+Contract -> Blockchain: Update Status: AtHub
+Contract -> Contract: Check temperature compliance
+Contract -> Contract: Check delays/lost
+Contract --> Hub: Checkpoint recorded
+deactivate Contract
+note right: Status changed:\nInTransit → AtHub
+
+== Out for Delivery ==
+
+Carrier -> Contract: recordCheckpoint(shipmentId, "Pickup", ...)
+activate Contract
+Contract -> Contract: Validate actor role (Carrier/Sensor)
+Contract -> Blockchain: Create Checkpoint
+Contract -> Contract: updateStatusFromCheckpoint()
+Contract -> Blockchain: Update Status: OutForDelivery
+Contract -> Contract: Check temperature compliance
+Contract -> Contract: Check delays/lost
+Contract --> Carrier: Checkpoint recorded
+deactivate Contract
+note right: Status changed:\nAtHub → OutForDelivery
+
+alt During Delivery (optional)
+    Carrier -> Contract: recordCheckpoint(shipmentId, "Transit", ...)
+    activate Contract
+    Contract -> Blockchain: Create Checkpoint (no status change)
+    Contract -> Contract: Check temperature compliance
+    Contract -> Contract: Check delays/lost
+    Contract --> Carrier: Checkpoint recorded
+    deactivate Contract
+    note right: Status remains:\nOutForDelivery
+end
+
+alt Exception: Return to Hub
+    Hub -> Contract: recordCheckpoint(shipmentId, "Hub", ...)
+    activate Contract
+    Contract -> Blockchain: Create Checkpoint
+    Contract -> Contract: updateStatusFromCheckpoint()
+    Contract -> Blockchain: Update Status: AtHub
+    Contract --> Hub: Checkpoint recorded
+    deactivate Contract
+    note right: Status changed:\nOutForDelivery → AtHub\n(Exception flow)
+end
+
+== Final Delivery ==
+
+Recipient -> Contract: recordCheckpoint(shipmentId, "Delivery", ...)
+activate Contract
+Contract -> Contract: Validate actor role (Recipient only)
+Contract -> Blockchain: Create Checkpoint
+Contract -> Contract: updateStatusFromCheckpoint()
+Contract -> Blockchain: Update Status: Delivered
+Contract -> Blockchain: Set dateDelivered = block.timestamp
+Contract -> Contract: emit DeliveryConfirmed()
+Contract --> Recipient: Delivery confirmed
+deactivate Contract
+note right: Status changed:\nOutForDelivery → Delivered\nFinal state
+
+== Alternative Flow: Cancellation ==
+
+alt Sender cancels shipment
+    Sender -> Contract: cancelShipment(shipmentId)
+    activate Contract
+    Contract -> Contract: Validate (Sender only, status != Delivered/Cancelled)
+    Contract -> Blockchain: Update Status: Cancelled
+    Contract -> Contract: emit ShipmentStatusChanged()
+    Contract --> Sender: Shipment cancelled
+    deactivate Contract
+    note right: Status changed:\nAny → Cancelled\nFinal state
+end
+
+== Automatic Incident Detection ==
+
+note over Contract, Blockchain
+  **Automatic Checks (performed on every checkpoint):**
+  
+  1. **Temperature Compliance** (if requiresColdChain)
+     - If temp < minTemp OR temp > maxTemp
+     → Create TempViolation incident
+  
+  2. **Delay Detection**
+     - If current time > estimatedDelivery
+     → Create Delay incident
+  
+  3. **Lost Detection**
+     - If delay > 1 hour
+     → Create Lost incident
+  
+  4. **Damage Detection**
+     - If hasDamage = true in checkpoint
+     → Create Damage incident
+end note
+
+@enduml
+
