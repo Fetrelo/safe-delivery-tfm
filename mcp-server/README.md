@@ -193,3 +193,4 @@ npm run dev
 
 4. **MCP server not found**: Check that the path in your MCP configuration is absolute and correct.
 
+
